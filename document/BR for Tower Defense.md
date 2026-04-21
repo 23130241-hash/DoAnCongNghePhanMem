@@ -1,24 +1,34 @@
-BUSINESS REQUIREMENTS DOCUMENT (BRD) – TOWER DEFENSE GAME
-1. Mục tiêu chiến lược (Business Objectives)
-BO-01 (Engagement): Tạo ra trải nghiệm chơi game gây nghiện thông qua vòng lặp: Đặt trụ -> Diệt quái -> Thu tiền -> Nâng cấp.
-BO-02 (Monetization): Tối ưu hóa doanh thu bằng cách khuyến khích người chơi sử dụng kỹ năng đặc biệt (UC-04) và nâng cấp trụ (UC-02), từ đó tạo nhu cầu mua vật phẩm hỗ trợ hoặc xem quảng cáo để kiếm thêm tiền (Gold).
-BO-03 (Retention): Giữ chân người dùng thông qua hệ thống tiến triển (Leveling) và độ khó tăng dần theo từng Wave (UC-03).
-2. Quy tắc nghiệp vụ (Business Rules - BR)
-Các quy tắc này là "luật chơi" mà hệ thống phần mềm phải tuân thủ để đảm bảo tính cân bằng và kinh tế trong game:
-ID	Tên quy tắc	Mô tả chi tiết	Liên kết UC
-BR-01	Kinh tế đóng	Tiền (Gold) chỉ được sinh ra khi tiêu diệt quái hoặc hoàn thành Wave. Tiền này không thể rút ra ngoài màn chơi.	UC-01, UC-02
-BR-02	Bảo toàn vị trí	Một ô đất (Grid) chỉ được chứa tối đa 1 trụ. Không được phép đặt chồng lấp trừ khi có tính năng đặc biệt.	UC-01
-BR-03	Khấu hao bán trụ	Nếu người chơi bán trụ (ngoài UC-01/02), chỉ hoàn lại tối đa 70% giá trị gốc để tránh việc lạm dụng thay đổi chiến thuật quá dễ dàng.	UC-01
-BR-04	Quản lý thất bại	Khi HP Base chạm mức 0, người chơi phải được cung cấp lựa chọn "Hồi sinh" (xem quảng cáo) hoặc "Thua cuộc" để bảo vệ doanh thu.	UC-05
-BR-05	Tiến trình kỹ năng	Các kỹ năng đặc biệt (UC-04) phải có thời gian hồi (Cooldown) đủ lâu để không làm mất đi tính chiến thuật của trụ.	UC-04
-3. Phạm vi giải pháp (Solution Scope)
-Để đáp ứng các User Case, hệ thống phần mềm cần có:
-Core Engine: Xử lý va chạm (Collision), tìm đường (Pathfinding cho quái), và hệ thống đạn (Projectile).
-Data Driven System: Toàn bộ thông số trụ (Damage, Range - UC-02) và quái (HP, Speed - UC-03) phải được quản lý qua file cấu hình (JSON/Excel) để dễ dàng cân bằng (Re-balance) mà không cần can thiệp vào code core.
-Reward System: Cơ chế tính toán phần thưởng (sao, tiền, vật phẩm) dựa trên lượng HP còn lại của Base khi kết thúc màn chơi.
-4. Chỉ số đo lường thành công (Success Metrics/KPIs)
-Với tư cách là BA, bạn sẽ đo lường hiệu quả của các UC đã thiết kế qua:
-Average Wave Reached: Người chơi trung bình đạt đến wave bao nhiêu? (Nếu quá thấp -> Game quá khó; nếu quá cao -> Game quá dễ).
-Gold Sink Ratio: Tỷ lệ người chơi tiêu tiền để nâng cấp trụ (UC-02) so với việc đặt trụ mới (UC-01).
-Skill Usage Frequency: Tần suất sử dụng kỹ năng đặc biệt (UC-04) để đánh giá độ hữu dụng của kỹ năng.
-Churn Rate per Level: Tỷ lệ người chơi bỏ game tại một Level cụ thể (thường liên quan đến UC-05).
+BUSINESS REQUIREMENTS DOCUMENT (BRD) - TOWER DEFENSE PROJECT
+1. Thông tin chung (Project Overview)
+Tên dự án: Tower Defense Mobile 2024
+Tầm nhìn: Tạo ra một trò chơi chiến thuật có nhịp độ nhanh, dễ tiếp cận nhưng có chiều sâu về nâng cấp, nhằm tối ưu hóa doanh thu từ quảng cáo và mua hàng trong ứng dụng.
+2. Mục tiêu chiến lược (Business Objectives)
+ID	Mục tiêu	Mô tả chi tiết
+BO-01	Engagement	Người chơi dành trung bình >20 phút/phiên chơi thông qua vòng lặp gameplay cốt lõi.
+BO-02	Monetization	Tích hợp hệ thống quảng cáo nhận thưởng và vật phẩm ảo (Vàng, Kim cương) mà không làm gián đoạn trải nghiệm.
+BO-03	Scalability	Hệ thống cho phép thêm mới Trụ (Towers) và Quái (Enemies) chỉ bằng cách thay đổi cấu hình dữ liệu (JSON/CSV).
+3. Quy tắc nghiệp vụ (Business Rules - BR)
+Đây là các logic bắt buộc mà đội ngũ phát triển phải tuân thủ để đảm bảo tính kinh tế và cân bằng của trò chơi.
+ID	Tên quy tắc	Liên kết UC	Mô tả
+BR-01	Giới hạn xây dựng	UC-01	Trụ chỉ được đặt trên các "Build Point" đã quy định. Không cho phép chồng lấn.
+BR-02	Kinh tế trong trận	UC-01, 02	Vàng kiếm được trong màn chơi (In-match Gold) sẽ mất đi khi kết thúc màn đó.
+BR-03	Chi phí lũy tiến	UC-02	Chi phí nâng cấp trụ mỗi cấp phải tăng tối thiểu 50% so với cấp trước đó.
+BR-04	Phạt rút lui	UC-05	Nếu người chơi thoát trận giữa chừng, toàn bộ phần thưởng thu thập trong trận đó sẽ bị hủy.
+BR-05	Hồi chiêu kỹ năng	UC-04	Kỹ năng đặc biệt không thể sử dụng liên tục để tránh làm mất cân bằng độ khó.
+4. Phạm vi giải pháp (Solution Scope)
+Dựa trên User Case Requirements, hệ thống phần mềm cần đáp ứng:
+A. Hệ thống Game Logic (Core)
+Grid System: Quản lý tọa độ và tính hợp lệ khi đặt trụ (UC-01).
+Wave Engine: Tự động hóa việc spawn quái theo cấu hình thời gian và số lượng (UC-03).
+Damage Processor: Xử lý tương tác giữa các loại đạn và thuộc tính quái vật.
+B. Hệ thống Kinh tế & Dữ liệu
+Balance Sheet: Một file trung tâm (Excel/Google Sheet) chứa toàn bộ chỉ số HP, Damage, Speed, Cost.
+Currency Manager: Quản lý hai loại tiền (Tiền trong trận và Tiền hệ thống để nâng cấp vĩnh viễn).
+5. Yêu cầu phi chức năng (Non-Functional Requirements)
+Performance: Game phải duy trì ổn định 60 FPS ngay cả khi có >100 quái vật xuất hiện cùng lúc (UC-03).
+Offline Play: Người chơi có thể trải nghiệm các màn chơi cơ bản mà không cần kết nối Internet (ngoại trừ nạp tiền).
+Data Integrity: Tiền và tiến trình của người chơi phải được lưu cục bộ (Local) và đồng bộ ngay khi có mạng (Cloud).
+6. Chỉ số đo lường (KPIs)
+D1 Retention: >35% người chơi quay lại vào ngày hôm sau.
+Win/Loss Ratio: Tỷ lệ thắng ở các level đầu nên đạt 80% để giữ chân người chơi mới.
+Average Upgrade Level: Cấp độ nâng cấp trung bình của người chơi trước khi vượt qua Boss đầu tiên.
