@@ -91,6 +91,7 @@ Tốc độ cao, HP thấp.
 Tốc độ chậm, HP cao.
 
 8. FLOW GAMEPLAY
+
 MỞ GAME → HIỂN THỊ MENU CHÍNH
 
 CHỌN LEVEL → TẢI BẢN ĐỒ, SỐ THÁP VÀ TIỀN BAN ĐẦU
