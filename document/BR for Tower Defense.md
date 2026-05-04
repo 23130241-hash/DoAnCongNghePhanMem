@@ -4,22 +4,19 @@
 TÊN DỰ ÁN: TOWER DEFENSE OFFLINE
 
 TẦM NHÌN:
-Tạo ra một trò chơi TOWER DEFENSE OFFLINE, chiến thuật, nhịp độ vừa phải, dễ tiếp cận nhưng có chiều sâu về nâng cấp trụ, nhằm tối ưu hóa trải nghiệm người chơi và doanh thu từ quảng cáo (nếu cần).
+Tạo ra một trò chơi TOWER DEFENSE OFFLINE, chiến thuật, nhịp độ vừa phải, dễ tiếp cận nhưng có chiều sâu về nâng cấp trụ, nhằm tối ưu hóa trải nghiệm người chơi.
 
-NỀN TẢNG: ANDROID / IOS / PC (offline cơ bản, dữ liệu lưu cục bộ)
+NỀN TẢNG: PC (offline cơ bản, dữ liệu lưu cục bộ)
 
 2. MỤC TIÊU CHIẾN LƯỢC (BUSINESS OBJECTIVES)
 
 🚀 [BO-01] ENGAGEMENT:
 Người chơi dành trung bình >15–20 PHÚT mỗi phiên chơi qua vòng lặp gameplay cốt lõi.
 
-💰 [BO-02] MONETIZATION:
-Tích hợp QUẢNG CÁO NHẬN THƯỞNG và vật phẩm ảo (VÀNG, KIM CƯƠNG) mà không làm gián đoạn trải nghiệm.
-
-⚙️ [BO-03] SCALABILITY:
+⚙️ [BO-02] SCALABILITY:
 Hệ thống cho phép thêm mới TRỤ (TOWERS) và QUÁI (ENEMIES) chỉ bằng cách thay đổi cấu hình dữ liệu (JSON/CSV).
 
-📴 [BO-04] OFFLINE PLAY:
+📴 [BO-03] OFFLINE PLAY:
 Người chơi có thể trải nghiệm toàn bộ gameplay cơ bản mà KHÔNG CẦN INTERNET.
 
 3. QUY TẮC NGHIỆP VỤ (BUSINESS RULES)
@@ -52,7 +49,7 @@ B. HỆ THỐNG KINH TẾ & DỮ LIỆU
 
 BALANCE SHEET: File trung tâm chứa các chỉ số HP, DAMAGE, SPEED, COST.
 
-CURRENCY MANAGER: Quản lý TIỀN TRONG TRẬN và TIỀN NÂNG CẤP VĨNH VIỄN.
+CURRENCY MANAGER: Quản lý TIỀN TRONG TRẬN.
 
 5. YÊU CẦU PHI CHỨC NĂNG (NON-FUNCTIONAL REQUIREMENTS)
 
@@ -63,7 +60,7 @@ Game duy trì 60 FPS ngay cả khi >100 quái vật xuất hiện.
 Chơi được tất cả màn cơ bản mà KHÔNG CẦN INTERNET.
 
 💾 DATA INTEGRITY:
-Tiền và tiến trình lưu CỤC BỘ, đồng bộ CLOUD khi có mạng.
+Tiến trình lưu CỤC BỘ.
 
 🎨 UI/UX:
 Giao diện TRỰC QUAN, DỄ HỌC, hiển thị thông tin cơ bản: TIỀN, LEVEL, HP CĂN CỨ.
