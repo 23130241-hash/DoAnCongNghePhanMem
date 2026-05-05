@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kingdom Defense - MVC Edition</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="main-menu" class="overlay">
+  <h1>KINGDOM DEFENSE</h1>
+  <div class="menu-buttons">
+    <button id="start-btn">BẮT ĐẦU</button>
+    <button id="quit-btn">THOÁT</button>
+  </div>
+</div>
+
+<div id="game-container" class="hidden">
+  <div id="top-bar">
+    <div class="stat">❤️ HP: <span id="hp-val">20/20</span></div>
+    <div class="stat">💰 Vàng: <span id="gold-val">200</span></div>
+    <div id="tower-slots">
+      <div class="slot active" data-type="archer" title="Trụ Cung (50g)">🏹</div>
+      <div class="slot active" data-type="cannon" title="Trụ Pháo (100g)">💣</div>
+      <div class="slot locked">🔒</div>
+      <div class="slot locked">🔒</div>
+      <div class="slot locked">🔒</div>
+    </div>
+  </div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="tower-menu" class="hidden">
+    <button id="upgrade-btn" disabled>Nâng cấp (Khóa)</button>
+    <button id="sell-btn">Bán (50%)</button>
+  </div>
+
+  <div id="wave-info">Wave: <span id="wave-val">0/3</span> | <span id="timer-val">Next in: 20s</span></div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
