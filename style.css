@@ -38,3 +38,30 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 #ui-messages { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 20; pointer-events: none; opacity: 0; transition: 0.3s; }
 .hidden { display: none !important; }
 canvas { display: block; }
+
+.top-right-stars {
+    position: absolute; top: 20px; right: 20px;
+    background: rgba(0,0,0,0.8); padding: 10px 20px;
+    color: #f1c40f; font-size: 24px; border-radius: 20px; border: 2px solid #f1c40f;
+}
+
+.bottom-left-btn {
+    position: absolute; bottom: 20px; left: 20px;
+    padding: 15px; background: #27ae60; color: white;
+    border: 3px solid #2ecc71; border-radius: 10px; cursor: pointer;
+}
+
+.upgrade-container {
+    width: 80%; height: 80%; background: #3e2723; /* Màu gỗ đậm */
+    border: 5px solid #795548; padding: 20px; color: white;
+    display: flex; flex-direction: column; align-items: center;
+}
+
+.level-node {
+    width: 60px; height: 60px; border-radius: 50%;
+    background: #e67e22; border: 3px solid white; color: white;
+    cursor: pointer; transition: 0.3s;
+}
+
+.level-node:hover { transform: scale(1.2); background: #f39c12; }
+.level-node.locked { background: #7f8c8d; opacity: 0.5; }

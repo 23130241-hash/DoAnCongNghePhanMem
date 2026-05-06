@@ -14,6 +14,39 @@
     </div>
 </div>
 
+<div id="campaign-map" class="overlay hidden">
+    <div class="top-right-stars">⭐ Total Stars: <span id="total-stars-val">0</span></div>
+
+    <div class="map-content">
+        <h1>BẢN ĐỒ CHIẾN DỊCH</h1>
+        <div class="level-nodes">
+            <button class="level-node" data-level="1">Level 1</button>
+            <button class="level-node locked" disabled>Level 2</button>
+        </div>
+    </div>
+
+    <button id="open-upgrade-btn" class="bottom-left-btn">🛡️ Upgrade / Buy Tower</button>
+</div>
+
+<div id="upgrade-screen" class="overlay hidden">
+    <div class="upgrade-container">
+        <h2>TOWER UPGRADES</h2>
+        <div id="upgrade-tree-view">
+        </div>
+
+        <div id="upgrade-details" class="hidden">
+            <h3 id="up-name">Tên nâng cấp</h3>
+            <p id="up-desc">Mô tả chi tiết</p>
+            <p>Giá: <span id="up-cost">0</span> ⭐</p>
+        </div>
+
+        <div class="upgrade-actions">
+            <button id="cancel-upgrade-btn">HỦY</button>
+            <button id="confirm-upgrade-btn">NÂNG CẤP</button>
+        </div>
+    </div>
+</div>
+
 <div id="victory-modal" class="overlay hidden">
     <div class="menu-box">
         <h1 style="color: #2ecc71;">CHIẾN THẮNG!</h1>
