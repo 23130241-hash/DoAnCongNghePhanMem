@@ -58,7 +58,46 @@ const Player_Stats = {
     },
     checkMoney(cost) { return this.money >= cost; },
     deductMoney(cost) { this.money -= cost; },
-    addMoney(amount) { this.money += amount; }
+    addMoney(amount) { this.money += amount; },
+    addGold(amount) { this.money += amount; } // Alias for Sequence Diagram
+};
+
+/** --------------------------------------------------------------------
+ * Enemy — Đối tượng kẻ thù ([Sequence] Enemy)
+ * ------------------------------------------------------------------ */
+class Enemy {
+    constructor(config) {
+        Object.assign(this, config);
+    }
+
+    /** [Sequence #6] Nhận sát thương */
+    takeDamage(dmg) {
+        this.hp -= dmg;
+        return this.hp;
+    }
+
+    /** [Sequence #8, #9] Xử lý khi bị tiêu diệt */
+    onDeath() {
+        Enemy_Manager.onDeath(this);
+        Player_Stats.addGold(this.reward);
+    }
+}
+
+/** --------------------------------------------------------------------
+ * Enemy_Manager — Quản lý danh sách kẻ thù ([Sequence] Enemy_Manager)
+ * ------------------------------------------------------------------ */
+const Enemy_Manager = {
+    get enemies() { return Game_Manager.enemies; },
+
+    /** [Sequence #2] Trả về danh sách enemy trong tầm bắn */
+    getEnemiesInRange(x, y, range) {
+        return this.enemies.filter(e => Math.hypot(e.x - x, e.y - y) <= range);
+    },
+
+    /** [Sequence #8] Xóa khỏi bản đồ */
+    onDeath(enemy) {
+        Game_Manager.enemies = Game_Manager.enemies.filter(e => e !== enemy);
+    }
 };
 
 const Map_Grid = {
@@ -130,6 +169,97 @@ class Tower {
     }
     sellPrice() {
         return Math.floor(this.totalSpent * GAME_CONFIG.TOWERS.sellRatio);
+    }
+
+    /** [Sequence #1] Cập nhật logic bắn của Tower */
+    update() {
+        const now = Date.now();
+        if (now - this.lastShot < this.cd) return;
+
+        // [Sequence #2] getEnemiesInRange
+        const inRange = Enemy_Manager.getEnemiesInRange(this.x, this.y, this.range);
+
+        // [Sequence #3] Tính khoảng cách, chọn mục tiêu (ưu tiên kẻ thù gần đích nhất / đi xa nhất)
+        if (inRange.length > 0) {
+            // Chọn mục tiêu có node cao nhất và khoảng cách tới target tiếp theo nhỏ nhất
+            let target = inRange[0];
+            for (let i = 1; i < inRange.length; i++) {
+                if (inRange[i].node > target.node) {
+                    target = inRange[i];
+                } else if (inRange[i].node === target.node) {
+                    const dTarget = Math.hypot(target.x - this.x, target.y - this.y);
+                    const dNext = Math.hypot(inRange[i].x - this.x, inRange[i].y - this.y);
+                    if (dNext < dTarget) target = inRange[i];
+                }
+            }
+
+            // [Sequence #4] create Projectile
+            Projectile.create(this, target);
+            this.lastShot = now;
+        }
+    }
+}
+
+/** --------------------------------------------------------------------
+ * Projectile — Đối tượng đạn ([Sequence] Projectile)
+ * ------------------------------------------------------------------ */
+class Projectile {
+    constructor(tower, target) {
+        this.x = tower.x;
+        this.y = tower.y;
+        this.target = target;
+        this.dmg = tower.dmg;
+        this.color = tower.color;
+        this.attackType = tower.attackType;
+        this.expRad = tower.explosionRadius;
+        this.speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
+        this.angle = Math.atan2(target.y - this.y, target.x - this.x);
+    }
+
+    static create(tower, target) {
+        const p = new Projectile(tower, target);
+        Game_Manager.projectiles.push(p);
+    }
+
+    /** [Sequence #5] Cập nhật vị trí và va chạm */
+    update() {
+        const targetGone = !this.target || this.target.hp <= 0
+            || Game_Manager.enemies.indexOf(this.target) === -1;
+
+        if (targetGone) {
+            // Bay tiếp theo hướng cũ rồi tự biến mất
+            this.x += Math.cos(this.angle) * (this.speed * 0.85);
+            this.y += Math.sin(this.angle) * (this.speed * 0.85);
+            if (this.x < 0 || this.x > GAME_CONFIG.GAMEPLAY.canvasWidth ||
+                this.y < 0 || this.y > GAME_CONFIG.GAMEPLAY.canvasHeight) {
+                return false; // Để xóa khỏi mảng
+            }
+            return true;
+        }
+
+        // Bay về phía Enemy
+        this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
+        this.x += Math.cos(this.angle) * this.speed;
+        this.y += Math.sin(this.angle) * this.speed;
+
+        // [Sequence #6] Cho đến khi va chạm
+        if (Math.hypot(this.target.x - this.x, this.target.y - this.y) < 15) {
+            if (this.attackType === 'aoe') {
+                Game_Manager.explosions.push({
+                    x: this.x, y: this.y, radius: 0,
+                    maxRadius: this.expRad, alpha: 1
+                });
+                Game_Manager.enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.expRad) {
+                        e.takeDamage(this.dmg); // [Sequence #6]
+                    }
+                });
+            } else {
+                this.target.takeDamage(this.dmg); // [Sequence #6]
+            }
+            return false; // Va chạm xong thì xóa
+        }
+        return true;
     }
 }
 
@@ -295,64 +425,25 @@ const Game_Manager = {
         // Duyệt một bản sao để có thể destroy ngay trong vòng lặp
         const enemiesSnapshot = this.enemies.slice();
         for (const enemy of enemiesSnapshot) {
-            this.updateEnemyPosition(enemy);                // #1
-            if (this.checkBaseCollision(enemy)) {           // #2
+            this.updateEnemyPosition(enemy);
+            if (this.checkBaseCollision(enemy)) {
                 this.handleEnemyReachedBase(enemy);
                 if (this.isGameOver) return;
             }
         }
 
-        // ---- Towers bắn ----
-        const now = Date.now();
-        this.towers.forEach(t => {
-            if (now - t.lastShot > t.cd) {
-                const target = this.enemies.find(e =>
-                    Math.hypot(e.x - t.x, e.y - t.y) <= t.range);
-                if (target) {
-                    this.projectiles.push({
-                        x: t.x, y: t.y, target, dmg: t.dmg,
-                        color: t.color, attackType: t.attackType,
-                        expRad: t.explosionRadius
-                    });
-                    t.lastShot = now;
-                }
-            }
-        });
+        // [Sequence #1] Tower.update()
+        this.towers.forEach(t => t.update());
 
-        // ---- Projectiles ----
-        const speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
-        const W = GAME_CONFIG.GAMEPLAY.canvasWidth;
-        const H = GAME_CONFIG.GAMEPLAY.canvasHeight;
+        // [Sequence #5] Projectile.update()
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
-            const p = this.projectiles[i];
-            const targetGone = !p.target || p.target.hp <= 0
-                || this.enemies.indexOf(p.target) === -1;
-            if (targetGone) {
-                p.x += Math.cos(p.angle || 0) * (speed * 0.85);
-                p.y += Math.sin(p.angle || 0) * (speed * 0.85);
-                if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) this.projectiles.splice(i, 1);
-                continue;
-            }
-            p.angle = Math.atan2(p.target.y - p.y, p.target.x - p.x);
-            if (Math.hypot(p.target.x - p.x, p.target.y - p.y) < 15) {
-                if (p.attackType === 'aoe') {
-                    this.explosions.push({
-                        x: p.x, y: p.y, radius: 0,
-                        maxRadius: p.expRad, alpha: 1
-                    });
-                    this.enemies.forEach(e => {
-                        if (Math.hypot(e.x - p.x, e.y - p.y) < p.expRad) e.hp -= p.dmg;
-                    });
-                } else {
-                    p.target.hp -= p.dmg;
-                }
-                this.checkEnemyDeath();
+            if (!this.projectiles[i].update()) {
                 this.projectiles.splice(i, 1);
-            } else {
-                p.x += Math.cos(p.angle) * speed;
-                p.y += Math.sin(p.angle) * speed;
             }
         }
+
+        // Sau khi đạn bắn, kiểm tra xem có enemy nào chết không
+        this.checkEnemyDeath();
 
         // ---- Explosions ----
         const grow = GAME_CONFIG.GAMEPLAY.explosionGrowthRate;
@@ -376,14 +467,10 @@ const Game_Manager = {
     },
 
     checkEnemyDeath() {
-        this.enemies = this.enemies.filter(e => {
-            if (e.hp <= 0) {
-                Player_Stats.addMoney(e.reward);
-                UI_Manager.updateUI();
-                return false;
-            }
-            return true;
-        });
+        // [Sequence #7, #8, #9]
+        const deadEnemies = this.enemies.filter(e => e.hp <= 0);
+        deadEnemies.forEach(e => e.onDeath());
+        UI_Manager.updateUI();
     },
 
     /* ---------- Spawn waves ---------- */
@@ -404,7 +491,7 @@ const Game_Manager = {
         this._spawnInterval = setInterval(() => {
             if (this.isPaused || this.isGameOver) return;
 
-            this.enemies.push({
+            this.enemies.push(new Enemy({
                 x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
                 hp: enemyStats.hp, maxHp: enemyStats.hp,
                 speed: enemyStats.speed,
@@ -414,7 +501,7 @@ const Game_Manager = {
                 damage: enemyStats.damage,
                 color: enemyStats.color,
                 type: waveData.enemyType
-            });
+            }));
             this.enemiesSpawnedThisWave++;
 
             if (this.enemiesSpawnedThisWave >= waveData.count) {
