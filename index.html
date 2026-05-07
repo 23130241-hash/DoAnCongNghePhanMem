@@ -6,6 +6,8 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- ===== MAIN MENU ===== -->
 <div id="main-menu" class="overlay">
     <div class="menu-box">
         <h1>KINGDOM DEFENSE</h1>
@@ -14,9 +16,9 @@
     </div>
 </div>
 
+<!-- ===== CAMPAIGN MAP (chưa hoàn thiện) ===== -->
 <div id="campaign-map" class="overlay hidden">
     <div class="top-right-stars">⭐ Total Stars: <span id="total-stars-val">0</span></div>
-
     <div class="map-content">
         <h1>BẢN ĐỒ CHIẾN DỊCH</h1>
         <div class="level-nodes">
@@ -24,22 +26,19 @@
             <button class="level-node locked" disabled>Level 2</button>
         </div>
     </div>
-
     <button id="open-upgrade-btn" class="bottom-left-btn">🛡️ Upgrade / Buy Tower</button>
 </div>
 
+<!-- ===== UPGRADE SCREEN (placeholder) ===== -->
 <div id="upgrade-screen" class="overlay hidden">
     <div class="upgrade-container">
         <h2>TOWER UPGRADES</h2>
-        <div id="upgrade-tree-view">
-        </div>
-
+        <div id="upgrade-tree-view"></div>
         <div id="upgrade-details" class="hidden">
             <h3 id="up-name">Tên nâng cấp</h3>
             <p id="up-desc">Mô tả chi tiết</p>
             <p>Giá: <span id="up-cost">0</span> ⭐</p>
         </div>
-
         <div class="upgrade-actions">
             <button id="cancel-upgrade-btn">HỦY</button>
             <button id="confirm-upgrade-btn">NÂNG CẤP</button>
@@ -47,6 +46,7 @@
     </div>
 </div>
 
+<!-- ===== VICTORY MODAL ===== -->
 <div id="victory-modal" class="overlay hidden">
     <div class="menu-box">
         <h1 style="color: #2ecc71;">CHIẾN THẮNG!</h1>
@@ -59,6 +59,22 @@
     </div>
 </div>
 
+<!-- ===== GAME OVER MODAL (UC08 Sequence #8) ===== -->
+<div id="game-over-modal" class="overlay hidden">
+    <div class="menu-box">
+        <h1 style="color: #e74c3c;">GAME OVER</h1>
+        <p class="subtitle">Căn cứ đã thất thủ!</p>
+        <p class="subtitle" style="font-size: 16px;">
+            Wave đạt được: <span id="go-wave-reached">0/0</span>
+        </p>
+        <div style="display: flex; gap: 10px; justify-content: center;">
+            <button id="go-retry-btn" style="background: #e67e22;">🔄 CHƠI LẠI</button>
+            <button id="go-home-btn" style="background: #3498db;">🏠 MÀN HÌNH CHÍNH</button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== GAME CONTAINER ===== -->
 <div id="game-container" class="hidden">
     <div id="game-controls">
         <button id="pause-btn" title="Tạm dừng/Tiếp tục">⏸️</button>
@@ -66,7 +82,7 @@
     </div>
 
     <div id="top-bar">
-        <div class="stat-box hp">❤️ <span id="hp-val">20</span>/20</div>
+        <div class="stat-box hp">❤️ <span id="hp-val">20</span>/<span id="hp-max-val">20</span></div>
         <div class="stat-box gold">💰 <span id="gold-val">200</span></div>
 
         <div id="tower-slots">
@@ -88,8 +104,11 @@
 
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Lớp phủ nháy đỏ khi enemy lọt căn cứ (UC08 Sequence #5) -->
+    <div id="flash-overlay"></div>
+
     <div id="tower-menu" class="hidden">
-        <button id="upgrade-btn" disabled>Nâng cấp (Khóa)</button>
+        <button id="upgrade-btn" disabled>Nâng cấp</button>
         <button id="sell-btn">Bán (<span id="sell-price">25</span>g)</button>
         <button id="close-menu-btn">❌ Đóng</button>
     </div>
@@ -97,6 +116,8 @@
     <div id="ui-messages"></div>
 </div>
 
+<!-- Tách config riêng để dễ thêm/sửa map, quái, tháp -->
+<script src="config.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

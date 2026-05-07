@@ -1,27 +1,74 @@
 * { box-sizing: border-box; user-select: none; }
-body, html { margin: 0; padding: 0; background: #111; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+body, html {
+    margin: 0; padding: 0; background: #111; font-family: 'Segoe UI', sans-serif;
+    display: flex; justify-content: center; align-items: center; height: 100vh;
+}
 
-.overlay { position: fixed; width: 100%; height: 100%; background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)), url('https://images.unsplash.com/photo-1599839619722-39751411ea63?q=80&w=1920&auto=format&fit=crop') center/cover; z-index: 100; display: flex; justify-content: center; align-items: center; }
-.menu-box { text-align: center; background: rgba(0, 0, 0, 0.8); padding: 40px; border-radius: 15px; border: 2px solid #f1c40f; box-shadow: 0 0 30px #f1c40f; }
-h1 { color: #f1c40f; font-size: 50px; margin: 0 0 10px 0; text-shadow: 3px 3px 0 #000; letter-spacing: 2px; }
+/* ============== Overlays & Menus ============== */
+.overlay {
+    position: fixed; width: 100%; height: 100%;
+    background:
+            linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.8)),
+            url('https://images.unsplash.com/photo-1599839619722-39751411ea63?q=80&w=1920&auto=format&fit=crop') center/cover;
+    z-index: 100;
+    display: flex; justify-content: center; align-items: center;
+}
+.menu-box {
+    text-align: center; background: rgba(0, 0, 0, 0.8);
+    padding: 40px; border-radius: 15px;
+    border: 2px solid #f1c40f; box-shadow: 0 0 30px #f1c40f;
+}
+h1 {
+    color: #f1c40f; font-size: 50px; margin: 0 0 10px 0;
+    text-shadow: 3px 3px 0 #000; letter-spacing: 2px;
+}
 .subtitle { color: #ecf0f1; font-size: 18px; margin-bottom: 30px; }
 
-button { padding: 10px 20px; font-size: 18px; font-weight: bold; cursor: pointer; border: 2px solid #fff; border-radius: 8px; transition: 0.2s; color: white; }
+button {
+    padding: 10px 20px; font-size: 18px; font-weight: bold;
+    cursor: pointer; border: 2px solid #fff; border-radius: 8px;
+    transition: 0.2s; color: white;
+}
 button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.2); }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
 #start-btn { background: #e67e22; font-size: 22px; padding: 15px 30px; }
 
-#game-container { position: relative; width: 900px; height: 600px; border: 4px solid #2c3e50; border-radius: 10px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #27ae60; }
+/* ============== Game container ============== */
+#game-container {
+    position: relative; width: 900px; height: 600px;
+    border: 4px solid #2c3e50; border-radius: 10px;
+    overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    background: #27ae60;
+}
 
-#game-controls { position: absolute; top: 80px; left: 10px; display: flex; gap: 10px; z-index: 20; }
-#game-controls button { background: rgba(0,0,0,0.6); border: 2px solid #f1c40f; padding: 5px 10px; font-size: 20px; border-radius: 5px; }
+#game-controls {
+    position: absolute; top: 80px; left: 10px;
+    display: flex; gap: 10px; z-index: 20;
+}
+#game-controls button {
+    background: rgba(0,0,0,0.6); border: 2px solid #f1c40f;
+    padding: 5px 10px; font-size: 20px; border-radius: 5px;
+}
 
-#top-bar { position: absolute; top: 0; width: 100%; height: 70px; background: rgba(0,0,0,0.85); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; z-index: 10; border-bottom: 2px solid #34495e; }
-.stat-box { font-size: 20px; font-weight: bold; color: white; background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 8px; }
+#top-bar {
+    position: absolute; top: 0; width: 100%; height: 70px;
+    background: rgba(0,0,0,0.85);
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0 20px; z-index: 10; border-bottom: 2px solid #34495e;
+}
+.stat-box {
+    font-size: 20px; font-weight: bold; color: white;
+    background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 8px;
+}
 .stat-box.hp { color: #e74c3c; } .stat-box.gold { color: #f1c40f; }
 
 #tower-slots { display: flex; gap: 15px; margin-left: 50px; }
-.slot { width: 60px; height: 60px; background: #34495e; border: 2px solid #7f8c8d; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; cursor: pointer; transition: 0.2s; }
+.slot {
+    width: 60px; height: 60px;
+    background: #34495e; border: 2px solid #7f8c8d; border-radius: 8px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    cursor: pointer; transition: 0.2s;
+}
 .slot .icon { font-size: 24px; }
 .slot .cost { font-size: 12px; color: #bdc3c7; font-weight: bold; margin-top: 2px; }
 .slot.active:hover { border-color: #f1c40f; background: #2c3e50; }
@@ -29,13 +76,57 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .slot.selected .cost { color: #fff; }
 .slot.locked { opacity: 0.4; cursor: not-allowed; }
 
-#tower-menu { position: absolute; background: rgba(0,0,0,0.85); border: 2px solid #f1c40f; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; z-index: 25; transform: translate(-50%, -100%); margin-top: -10px; }
-#tower-menu button { font-size: 14px; padding: 8px; border-radius: 5px; border: 1px solid #fff; }
-#upgrade-btn { background: #7f8c8d; }
+/* ============== Tower menu ============== */
+#tower-menu {
+    position: absolute; background: rgba(0,0,0,0.85);
+    border: 2px solid #f1c40f; padding: 10px; border-radius: 10px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 25; transform: translate(-50%, -100%); margin-top: -10px;
+}
+#tower-menu button {
+    font-size: 14px; padding: 8px; border-radius: 5px; border: 1px solid #fff;
+}
+#upgrade-btn { background: #27ae60; }
+#upgrade-btn:disabled { background: #7f8c8d; }
 #sell-btn { background: #c0392b; }
 #close-menu-btn { background: #34495e; }
 
-#ui-messages { position: absolute; top: 90px; left: 50%; transform: translateX(-50%); font-size: 24px; font-weight: bold; text-shadow: 2px 2px 4px #000; z-index: 20; pointer-events: none; opacity: 0; transition: 0.3s; }
+/* ============== UI messages ============== */
+#ui-messages {
+    position: absolute; top: 90px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 24px; font-weight: bold;
+    text-shadow: 2px 2px 4px #000;
+    z-index: 20; pointer-events: none;
+    opacity: 0; transition: 0.3s;
+}
+
+/* ============== FLASH OVERLAY (Sequence #5: nháy đỏ) ============== */
+#flash-overlay {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: radial-gradient(ellipse at center,
+    rgba(231,76,60,0) 30%, rgba(231,76,60,0.7) 100%);
+    pointer-events: none; opacity: 0;
+    z-index: 15;
+}
+#flash-overlay.flash-active { animation: flashRed 0.4s ease-out; }
+@keyframes flashRed {
+    0%   { opacity: 0; }
+    30%  { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ============== Game Over modal extras ============== */
+#game-over-modal .menu-box {
+    border-color: #e74c3c; box-shadow: 0 0 30px #e74c3c;
+}
+#game-over-modal h1 {
+    color: #e74c3c !important;
+    text-shadow: 3px 3px 0 #000, 0 0 20px rgba(231,76,60,0.8);
+}
+
+/* ============== Misc ============== */
 .hidden { display: none !important; }
 canvas { display: block; }
 
@@ -44,24 +135,20 @@ canvas { display: block; }
     background: rgba(0,0,0,0.8); padding: 10px 20px;
     color: #f1c40f; font-size: 24px; border-radius: 20px; border: 2px solid #f1c40f;
 }
-
 .bottom-left-btn {
     position: absolute; bottom: 20px; left: 20px;
     padding: 15px; background: #27ae60; color: white;
     border: 3px solid #2ecc71; border-radius: 10px; cursor: pointer;
 }
-
 .upgrade-container {
-    width: 80%; height: 80%; background: #3e2723; /* Màu gỗ đậm */
+    width: 80%; height: 80%; background: #3e2723;
     border: 5px solid #795548; padding: 20px; color: white;
     display: flex; flex-direction: column; align-items: center;
 }
-
 .level-node {
     width: 60px; height: 60px; border-radius: 50%;
     background: #e67e22; border: 3px solid white; color: white;
     cursor: pointer; transition: 0.3s;
 }
-
 .level-node:hover { transform: scale(1.2); background: #f39c12; }
 .level-node.locked { background: #7f8c8d; opacity: 0.5; }
