@@ -286,6 +286,10 @@ const Game_Manager = {
     /* ---------- Bắt đầu / Reset ---------- */
 
     startLevel(levelId) {
+        // BUG FIX: Dọn sạch spawn intervals/timeouts cũ trước khi start mới
+        // để tránh quái spawn vô hạn khi retry hoặc quay lại từ main menu
+        this._clearAllTimers();
+
         currentLevel = levelId;
         Player_Stats.initFromLevel(levelId);
         Map_Grid.loadMap(GAME_CONFIG.LEVELS[levelId].mapId);
@@ -307,6 +311,18 @@ const Game_Manager = {
 
         this._waveTimeout = setTimeout(() => this.spawnWave(),
             GAME_CONFIG.GAMEPLAY.firstWaveDelay);
+    },
+
+    /** BUG FIX: Hàm dọn dẹp tập trung tất cả timers để tránh rò rỉ */
+    _clearAllTimers() {
+        if (this._spawnInterval) {
+            clearInterval(this._spawnInterval);
+            this._spawnInterval = null;
+        }
+        if (this._waveTimeout) {
+            clearTimeout(this._waveTimeout);
+            this._waveTimeout = null;
+        }
     },
 
     /* ---------- Tower lifecycle ---------- */
@@ -396,8 +412,8 @@ const Game_Manager = {
     stopGameLoop() {
         this.isPlaying = false;
         this.isGameOver = true;
-        if (this._spawnInterval) { clearInterval(this._spawnInterval); this._spawnInterval = null; }
-        if (this._waveTimeout)   { clearTimeout(this._waveTimeout);   this._waveTimeout = null; }
+        // BUG FIX: Dùng _clearAllTimers() thay vì xử lý rời rạc
+        this._clearAllTimers();
     },
 
     /** Toàn bộ flow xử lý 1 enemy chạm căn cứ — đúng theo Sequence Diagram. */
@@ -476,7 +492,8 @@ const Game_Manager = {
     /* ---------- Spawn waves ---------- */
 
     spawnWave() {
-        if (this.isGameOver || Player_Stats.wave >= Player_Stats.maxWaves) return;
+        // BUG FIX: Kiểm tra isGameOver VÀ isPlaying để dừng spawn khi cần
+        if (this.isGameOver || !this.isPlaying || Player_Stats.wave >= Player_Stats.maxWaves) return;
 
         const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave];
         const enemyStats = GAME_CONFIG.ENEMIES[waveData.enemyType];
@@ -488,8 +505,20 @@ const Game_Manager = {
         UI_Manager.updateUI();
         this.enemiesSpawnedThisWave = 0;
 
+        // BUG FIX: Clear interval cũ trước khi tạo mới (phòng trường hợp double-call)
+        if (this._spawnInterval) {
+            clearInterval(this._spawnInterval);
+            this._spawnInterval = null;
+        }
+
         this._spawnInterval = setInterval(() => {
-            if (this.isPaused || this.isGameOver) return;
+            // BUG FIX: Kiểm tra đầy đủ — nếu game đã kết thúc/không chơi thì clear và thoát
+            if (this.isPaused) return; // Pause thì chờ, không clear
+            if (this.isGameOver || !this.isPlaying) {
+                clearInterval(this._spawnInterval);
+                this._spawnInterval = null;
+                return;
+            }
 
             this.enemies.push(new Enemy({
                 x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
@@ -507,7 +536,7 @@ const Game_Manager = {
             if (this.enemiesSpawnedThisWave >= waveData.count) {
                 clearInterval(this._spawnInterval);
                 this._spawnInterval = null;
-                if (Player_Stats.wave < Player_Stats.maxWaves) {
+                if (Player_Stats.wave < Player_Stats.maxWaves && this.isPlaying && !this.isGameOver) {
                     this._waveTimeout = setTimeout(
                         () => this.spawnWave(),
                         GAME_CONFIG.LEVELS[currentLevel].waveDelay
@@ -569,6 +598,9 @@ const UI_Manager = {
     _bindTowerSlots() {
         document.querySelectorAll('.slot.active').forEach(slot => {
             slot.onclick = () => {
+                // BUG FIX: Không cho chọn trụ khi đang pause, game over, hoặc victory
+                if (Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) return;
+
                 this.hideTowerMenu();
                 if (slot.classList.contains('selected')) {
                     this.clearSelected();
@@ -585,7 +617,9 @@ const UI_Manager = {
     },
     _bindCanvasClick() {
         this.canvas.onclick = (e) => {
-            if (Game_Manager.isGameOver || Game_Manager.isVictory) return;
+            // BUG FIX: Block tất cả canvas interaction khi pause, game over, hoặc victory
+            if (Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) return;
+
             const rect = this.canvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
@@ -630,16 +664,44 @@ const UI_Manager = {
         document.getElementById('main-menu').classList.add('hidden');
         document.getElementById('game-container').classList.remove('hidden');
         document.getElementById('pause-btn').innerText = "⏸️";
+
+        // BUG FIX: Cancel RAF loop cũ trước khi start mới
+        // Nếu không cancel, sẽ có nhiều render loop chạy song song
+        // gây ra quái spawn vô hạn khi quay lại từ menu
+        if (Game_Manager._rafId) {
+            cancelAnimationFrame(Game_Manager._rafId);
+            Game_Manager._rafId = null;
+        }
+
         Game_Manager.startLevel(levelId);
-        if (!Game_Manager._rafId) this.renderLoop();
+        this.renderLoop();
     },
+
     restartLevel() {
         this.hideGameOver();
         this.hideVictory();
+        this.clearSelected();
+        this.hideTowerMenu();
+
+        // BUG FIX: Cancel RAF loop cũ trước khi restart
+        if (Game_Manager._rafId) {
+            cancelAnimationFrame(Game_Manager._rafId);
+            Game_Manager._rafId = null;
+        }
+
         Game_Manager.startLevel(currentLevel);
+        this.renderLoop();
     },
+
     backToMainMenu() {
+        // BUG FIX: Cancel RAF loop khi về menu để không bị double loop khi vào lại
+        if (Game_Manager._rafId) {
+            cancelAnimationFrame(Game_Manager._rafId);
+            Game_Manager._rafId = null;
+        }
+
         Game_Manager.stopGameLoop();
+        Game_Manager._clearAllTimers(); // Đảm bảo spawn cũng dừng
         Game_Manager.isPlaying = false;
         Game_Manager.isVictory = false;
         Game_Manager.isGameOver = false;
@@ -647,6 +709,8 @@ const UI_Manager = {
         Game_Manager.towers = [];
         Game_Manager.projectiles = [];
         Game_Manager.explosions = [];
+        this.clearSelected();
+        this.hideTowerMenu();
         this.hideGameOver();
         this.hideVictory();
         document.getElementById('game-container').classList.add('hidden');
