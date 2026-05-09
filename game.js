@@ -6,7 +6,26 @@
  *   - CONTROLLER: Game_Manager (cập nhật state, vòng lặp)
  *   - VIEW:       UI_Manager   (canvas + DOM + input)
  *
- * Use case trọng tâm: "Kẻ thù lọt vào căn cứ"
+ * Use case UC09 — "Sinh kẻ thù":
+ *   Tác nhân chính: Game Loop (hệ thống tự động)
+ *   Tiền điều kiện: isPlaying = true, isGameOver = false, bản đồ đã tải
+ *   Luồng chính (Main Flow):
+ *     1.1 Gọi spawnWave()
+ *     1.2 Kiểm tra trạng thái game và số wave hiện tại
+ *     1.3 Tăng số wave (wave++)
+ *     1.4 Đọc chỉ số HP enemy từ config theo wave
+ *     1.5 Tạo setInterval để sinh enemy liên tục
+ *     1.6 Mỗi tick: tạo 1 enemy mới tại path[0]
+ *     1.7 Gán thuộc tính cho enemy (vị trí, máu, tốc độ, node)
+ *     1.8 Thêm enemy vào danh sách enemies[]
+ *     1.9 Tăng biến đếm enemiesSpawnedThisWave
+ *     1.10 Kiểm tra đủ số lượng wave chưa
+ *     1.11 Nếu đủ → dừng setInterval
+ *   Alt Flow 2 (Game Over): isGameOver=true → hủy spawn, không tạo thêm
+ *   Alt Flow 3 (Pause):     isPaused=true  → tạm ngưng, chờ tiếp tục
+ *   Alt Flow 4 (Wave đủ):   dừng setInterval, lên wave tiếp hoặc chờ victory
+ *
+ * Use case UC08 — "Kẻ thù lọt vào căn cứ":
  *   → Bám sát Sequence Diagram: updatePosition → checkBaseCollision
  *     → destroy → reduceBaseHP → updateHPDisplay → checkGameOver
  *     → (alt) stopGameLoop + showGameOverScreen.
@@ -489,60 +508,128 @@ const Game_Manager = {
         UI_Manager.updateUI();
     },
 
-    /* ---------- Spawn waves ---------- */
+    /* =================================================================
+     * UC09 — "SINH KẺ THÙ"
+     * Tác nhân chính: Game Loop (hệ thống)
+     * Tác nhân phụ:  Player (chứng kiến kết quả)
+     * =================================================================*/
 
+    /**
+     * [UC09 — Main Flow 1.1] spawnWave() — Điểm vào chính của use case.
+     *
+     * Tiền điều kiện (kiểm tra ở đây):
+     *   - Trò chơi đã được bắt đầu (isPlaying = true)
+     *   - Game chưa kết thúc (isGameOver = false)
+     *   - Số wave hiện tại chưa đạt tối đa
+     *   - Bản đồ và đường đi đã được khởi tạo (Map_Grid.path)
+     *
+     * Hậu điều kiện:
+     *   - Thành công: enemy sinh đúng số lượng, di chuyển theo path
+     *   - Sau wave: chờ waveDelay rồi gọi wave tiếp theo (nếu còn)
+     *   - Wave cuối: dừng spawn, chờ victory check trong updateGameLoop
+     *   - Thất bại: game over xảy ra → hệ thống dừng sinh quái
+     */
     spawnWave() {
-        // BUG FIX: Kiểm tra isGameOver VÀ isPlaying để dừng spawn khi cần
-        if (this.isGameOver || !this.isPlaying || Player_Stats.wave >= Player_Stats.maxWaves) return;
+        // [UC09 — Main Flow 1.2] Kiểm tra trạng thái game và số wave hiện tại
+        // Alt Flow 2.2: isGameOver = true → hủy toàn bộ, không spawn thêm
+        if (this.isGameOver || !this.isPlaying) return;
 
-        const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave];
+        // [UC09 — Main Flow 1.2 tiếp] Kiểm tra đã đủ wave chưa
+        // Alt Flow 4.10: số wave đạt maxWaves → không gọi thêm
+        if (Player_Stats.wave >= Player_Stats.maxWaves) return;
+
+        // Đọc cấu hình wave từ config (data-driven — đáp ứng BO-02 Scalability)
+        const waveData   = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave];
         const enemyStats = GAME_CONFIG.ENEMIES[waveData.enemyType];
         if (!enemyStats) {
-            console.error(`Không tìm thấy enemy type: ${waveData.enemyType}`); return;
+            console.error(`[UC09] Không tìm thấy enemy type: "${waveData.enemyType}"`);
+            return;
         }
 
+        // [UC09 — Main Flow 1.3] Tăng số wave hiện tại (wave++)
         Player_Stats.wave++;
-        UI_Manager.updateUI();
+        UI_Manager.updateUI(); // Cập nhật "Wave: N/M" trên top-bar
+
+        // [UC09 — Main Flow 1.9 reset] Reset bộ đếm quái đã sinh trong wave này
         this.enemiesSpawnedThisWave = 0;
 
-        // BUG FIX: Clear interval cũ trước khi tạo mới (phòng trường hợp double-call)
+        // Đảm bảo không có interval cũ bị rò rỉ (phòng double-call)
         if (this._spawnInterval) {
             clearInterval(this._spawnInterval);
             this._spawnInterval = null;
         }
 
+        // [UC09 — Main Flow 1.5] Tạo setInterval để sinh enemy liên tục
+        // Mỗi khoảng waveData.interval (ms) sẽ spawn 1 enemy
         this._spawnInterval = setInterval(() => {
-            // BUG FIX: Kiểm tra đầy đủ — nếu game đã kết thúc/không chơi thì clear và thoát
-            if (this.isPaused) return; // Pause thì chờ, không clear
+
+            // [UC09 — Alt Flow 3.6] Trò chơi đang tạm dừng (isPaused = true)
+            // → 3.6.1 setInterval vẫn chạy nhưng thoát sớm, KHÔNG tạo enemy mới
+            // → 3.6.2 Khi resume, tick tiếp theo sẽ tiếp tục spawn bình thường
+            if (this.isPaused) return;
+
+            // [UC09 — Alt Flow 2.2] Hệ thống phát hiện game đã kết thúc
+            // → 2.2.1 Hủy thao tác spawn (clearInterval)
+            // → 2.2.2 Không tạo thêm enemy mới
             if (this.isGameOver || !this.isPlaying) {
                 clearInterval(this._spawnInterval);
                 this._spawnInterval = null;
                 return;
             }
 
+            // [UC09 — Main Flow 1.4] Tính chỉ số enemy từ config (data-driven)
+            // HP, speed, damage đọc trực tiếp từ GAME_CONFIG.ENEMIES — không hardcode
+
+            // [UC09 — Main Flow 1.6] Tạo 1 enemy mới tại vị trí bắt đầu đường đi
+
+            // [UC09 — Main Flow 1.7] Gán thuộc tính cho enemy:
+            //   - Vị trí: tọa độ của path[0] (điểm spawn)
+            //   - hp, maxHp: từ config (hỗ trợ mở rộng loại quái mới)
+            //   - speed: tốc độ di chuyển theo loại quái
+            //   - node: 1 (bắt đầu hướng tới waypoint thứ 1)
+            //   - damage: sát thương gây cho căn cứ (tham số hóa, không hardcode)
+
+            // [UC09 — Main Flow 1.8] Thêm enemy vào danh sách quản lý enemies[]
             this.enemies.push(new Enemy({
-                x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
-                hp: enemyStats.hp, maxHp: enemyStats.hp,
-                speed: enemyStats.speed,
-                node: 1,
-                size: enemyStats.size,
+                x:      Map_Grid.path[0].x,
+                y:      Map_Grid.path[0].y,
+                hp:     enemyStats.hp,
+                maxHp:  enemyStats.hp,
+                speed:  enemyStats.speed,
+                node:   1,
+                size:   enemyStats.size,
                 reward: enemyStats.reward,
-                damage: enemyStats.damage,
-                color: enemyStats.color,
-                type: waveData.enemyType
+                damage: enemyStats.damage,   // Tham số hóa — đáp ứng đặc tả UC09 §4.3.2
+                color:  enemyStats.color,
+                type:   waveData.enemyType
             }));
+
+            // [UC09 — Main Flow 1.9] Tăng biến đếm số lượng quái đã sinh trong wave
             this.enemiesSpawnedThisWave++;
 
+            // [UC09 — Main Flow 1.10] Kiểm tra số lượng enemy đã đạt giới hạn wave chưa
             if (this.enemiesSpawnedThisWave >= waveData.count) {
+
+                // [UC09 — Main Flow 1.11 / Alt Flow 4.10.1]
+                // Đã đủ số lượng → dừng setInterval của wave này
                 clearInterval(this._spawnInterval);
                 this._spawnInterval = null;
-                if (Player_Stats.wave < Player_Stats.maxWaves && this.isPlaying && !this.isGameOver) {
+
+                // [UC09 — Alt Flow 4.10.2 / Post-condition 2]
+                // Nếu còn wave tiếp theo: chờ waveDelay rồi gọi wave kế
+                // [UC09 — Post-condition 3]
+                // Nếu đây là wave cuối: KHÔNG lên lịch thêm — chờ victory
+                // check trong updateGameLoop (tất cả enemy bị tiêu diệt)
+                if (Player_Stats.wave < Player_Stats.maxWaves
+                    && this.isPlaying
+                    && !this.isGameOver) {
                     this._waveTimeout = setTimeout(
                         () => this.spawnWave(),
                         GAME_CONFIG.LEVELS[currentLevel].waveDelay
                     );
                 }
             }
+
         }, waveData.interval);
     }
 };
