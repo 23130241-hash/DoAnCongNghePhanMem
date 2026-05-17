@@ -110,6 +110,11 @@ const Map_Grid = {
         this.base = { ...map.base };
         this.occupiedSpots = [];
     },
+    /**
+     * [UC05 - Sequence #5.4.4] checkValidPosition(x,y)
+     * Kiểm tra vị trí đặt tower có hợp lệ hay không
+     * Tìm build spot gần nhất và kiểm tra spot đã bị chiếm chưa
+     */
     checkValidPosition(x, y) {
         const snap = GAME_CONFIG.GAMEPLAY.buildSpotSnapDistance;
         const spot = this.buildSpots.find(s => Math.hypot(s.x - x, s.y - y) < snap);
@@ -318,21 +323,54 @@ const Game_Manager = {
     },
 
     /* ---------- Tower lifecycle ---------- */
-
+    /**
+     * [UC05 - Sequence #5.4.3] requestBuildTower(x,y,towerType)
+     * Hàm điều phối chính của use case đặt tower
+     * Kiểm tra vị trí hợp lệ, kiểm tra tiền
+     * Sau đó tạo tower mới và cập nhật giao diện
+     */
     requestBuildTower(x, y, towerType) {
         const positionCheck = Map_Grid.checkValidPosition(x, y);
+        /**
+         * [UC05 - Alternative Flow A1]
+         * Nếu vị trí không hợp lệ thì hiển thị lỗi
+         */
         if (!positionCheck.valid) {
             UI_Manager.showError("Vị trí không hợp lệ", "#e74c3c");
             return;
         }
         const cost = GAME_CONFIG.TOWERS[towerType].levels[0].cost;
+        /**
+         * [UC05 - Sequence #5.4.5] checkMoney(cost)
+         * Kiểm tra người chơi có đủ tiền xây tower hay không
+         */
         if (!Player_Stats.checkMoney(cost)) {
+            /**
+             * [UC05 - Alternative Flow A2]
+             * Không đủ tiền để xây tower
+             */
             UI_Manager.showError("Không đủ tiền", "#f1c40f");
             return;
         }
+        /**
+         * [UC05 - Sequence #5.4.6] deductMoney(cost)
+         * Trừ số vàng tương ứng giá xây tower
+         */
         Player_Stats.deductMoney(cost);
+        /**
+         * [UC05 - Sequence #5.4.7] create Tower
+         * Tạo đối tượng tower mới tại build spot hợp lệ
+         */
         this.towers.push(new Tower(positionCheck.spot.x, positionCheck.spot.y, towerType));
+        /**
+         * [UC05 - Sequence #5.4.8] markOccupied(x,y)
+         * Đánh dấu build spot đã được sử dụng
+         */
         Map_Grid.markOccupied(positionCheck.spot.x, positionCheck.spot.y);
+        /**
+         * [UC05 - Sequence #5.4.9] updateUI()
+         * Cập nhật lại giao diện sau khi xây tower
+         */
         UI_Manager.updateUI();
         UI_Manager.clearSelected();
     },
@@ -603,6 +641,12 @@ const UI_Manager = {
             else alert("Bạn đã hoàn thành tất cả các màn!");
         };
     },
+    /**
+     * [UC05 - Sequence #5.4.1] Chọn loại tháp
+     * Người chơi click chọn một tower slot trên giao diện UI
+     * UI_Manager lưu tower được chọn vào selectedTowerSlot
+     * Đồng thời cập nhật trạng thái selected cho slot hiện tại
+     */
     _bindTowerSlots() {
         document.querySelectorAll('.slot.active').forEach(slot => {
             slot.onclick = () => {
@@ -623,6 +667,12 @@ const UI_Manager = {
             };
         });
     },
+    /**
+     * [UC05 - Sequence #5.4.2] Click vị trí trên bản đồ
+     * Nhận sự kiện click trên canvas game
+     * Lấy tọa độ clickX, clickY của người chơi
+     * Nếu đã chọn tower thì gửi yêu cầu xây tower
+     */
     _bindCanvasClick() {
         this.canvas.onclick = (e) => {
             // BUG FIX: Block tất cả canvas interaction khi pause, game over, hoặc victory
