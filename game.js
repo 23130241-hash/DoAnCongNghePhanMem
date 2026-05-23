@@ -2,14 +2,6 @@
  * 📄 game.js — KINGDOM DEFENSE (Pro Edition, Refactored)
  * ---------------------------------------------------------------------
  * Kiến trúc MVC nhẹ:
- *   - MODEL:      Player_Stats, Map_Grid, Tower
- *   - CONTROLLER: Game_Manager (cập nhật state, vòng lặp)
- *   - VIEW:       UI_Manager   (canvas + DOM + input)
- *
- * Use case trọng tâm: "Kẻ thù lọt vào căn cứ"
- *   → Bám sát Sequence Diagram: updatePosition → checkBaseCollision
- *     → destroy → reduceBaseHP → updateHPDisplay → checkGameOver
- *     → (alt) stopGameLoop + showGameOverScreen.
  * ===================================================================== */
 
 let currentLevel = 1;
@@ -121,6 +113,11 @@ const Map_Grid = {
         this.base = { ...map.base };
         this.occupiedSpots = [];
     },
+    /**
+     * [UC05 - Sequence #5.4.4] checkValidPosition(x,y)
+     * Kiểm tra vị trí đặt tower có hợp lệ hay không
+     * Tìm build spot gần nhất và kiểm tra spot đã bị chiếm chưa
+     */
     checkValidPosition(x, y) {
         const snap = GAME_CONFIG.GAMEPLAY.buildSpotSnapDistance;
         const spot = this.buildSpots.find(s => Math.hypot(s.x - x, s.y - y) < snap);
@@ -326,21 +323,54 @@ const Game_Manager = {
     },
 
     /* ---------- Tower lifecycle ---------- */
-
+    /**
+     * [UC05 - Sequence #5.4.3] requestBuildTower(x,y,towerType)
+     * Hàm điều phối chính của use case đặt tower
+     * Kiểm tra vị trí hợp lệ, kiểm tra tiền
+     * Sau đó tạo tower mới và cập nhật giao diện
+     */
     requestBuildTower(x, y, towerType) {
         const positionCheck = Map_Grid.checkValidPosition(x, y);
+        /**
+         * [UC05 - Alternative Flow A1]
+         * Nếu vị trí không hợp lệ thì hiển thị lỗi
+         */
         if (!positionCheck.valid) {
             UI_Manager.showError("Vị trí không hợp lệ", "#e74c3c");
             return;
         }
         const cost = GAME_CONFIG.TOWERS[towerType].levels[0].cost;
+        /**
+         * [UC05 - Sequence #5.4.5] checkMoney(cost)
+         * Kiểm tra người chơi có đủ tiền xây tower hay không
+         */
         if (!Player_Stats.checkMoney(cost)) {
+            /**
+             * [UC05 - Alternative Flow A2]
+             * Không đủ tiền để xây tower
+             */
             UI_Manager.showError("Không đủ tiền", "#f1c40f");
             return;
         }
+        /**
+         * [UC05 - Sequence #5.4.6] deductMoney(cost)
+         * Trừ số vàng tương ứng giá xây tower
+         */
         Player_Stats.deductMoney(cost);
+        /**
+         * [UC05 - Sequence #5.4.7] create Tower
+         * Tạo đối tượng tower mới tại build spot hợp lệ
+         */
         this.towers.push(new Tower(positionCheck.spot.x, positionCheck.spot.y, towerType));
+        /**
+         * [UC05 - Sequence #5.4.8] markOccupied(x,y)
+         * Đánh dấu build spot đã được sử dụng
+         */
         Map_Grid.markOccupied(positionCheck.spot.x, positionCheck.spot.y);
+        /**
+         * [UC05 - Sequence #5.4.9] updateUI()
+         * Cập nhật lại giao diện sau khi xây tower
+         */
         UI_Manager.updateUI();
         UI_Manager.clearSelected();
     },
@@ -369,7 +399,11 @@ const Game_Manager = {
      * SEQUENCE: "Kẻ thù lọt vào căn cứ" — TỪNG BƯỚC ĐÚNG TÊN HÀM
      * =================================================================*/
 
-    /** [Sequence #1] Cập nhật vị trí 1 enemy theo path. */
+    // Lớp Game_Manager - file game.js
+    /**
+     * [UC11 - Sequence #11.1.0] Game Loop frame update
+     * Cập nhật vị trí của tất cả kẻ thù trên bản đồ
+     */
     updateEnemyPosition(enemy) {
         const target = Map_Grid.path[enemy.node];
         if (!target) return;
@@ -383,7 +417,10 @@ const Game_Manager = {
         }
     },
 
-    /** [Sequence #2] Kiểm tra enemy có chạm vùng an toàn căn cứ không. */
+    /**
+     * [UC11 - Sequence #11.1.1] Kiểm tra va chạm căn cứ
+     * Kiểm tra tọa độ kẻ thù so với vùng an toàn của căn cứ
+     */
     checkBaseCollision(enemy) {
         // Tới điểm cuối đường đi
         if (enemy.node >= Map_Grid.path.length) return true;
@@ -393,42 +430,51 @@ const Game_Manager = {
         return Math.hypot(base.x - enemy.x, base.y - enemy.y) < hit;
     },
 
-    /** [Sequence #3] Hủy enemy (xóa khỏi mảng). */
+    /**
+     * [UC11 - Sequence #11.1.3] Hủy kẻ thù
+     * Xóa kẻ thù khỏi mảng quản lý quái vật
+     */
     destroyEnemy(enemy) {
         this.enemies = this.enemies.filter(e => e !== enemy);
     },
 
-    /** [Sequence #4] Trừ máu căn cứ. */
+    /**
+     * [UC11 - Sequence #11.1.4] Trừ máu căn cứ
+     * Giảm HP căn cứ theo damage của kẻ thù
+     */
     reduceBaseHP(damage) {
         Player_Stats.hp = Math.max(0, Player_Stats.hp - damage);
     },
 
-    /** [Sequence #6] Kiểm tra game over. */
+    /**
+     * [UC11 - Sequence #11.1.6] Kiểm tra điều kiện Game Over
+     */
     checkGameOver() {
         return Player_Stats.hp <= 0;
     },
 
-    /** [Sequence #7] Dừng toàn bộ vòng lặp game. */
+    /**
+     * [UC11 - Sequence #11.2.1 + 08.2.2] Dừng vòng lặp game
+     * Set GAME_OVER state, clear spawn interval và wave timeout
+     */
     stopGameLoop() {
         this.isPlaying = false;
         this.isGameOver = true;
-        // BUG FIX: Dùng _clearAllTimers() thay vì xử lý rời rạc
         this._clearAllTimers();
     },
 
-    /** Toàn bộ flow xử lý 1 enemy chạm căn cứ — đúng theo Sequence Diagram. */
+    /**
+     * [UC11 - Toàn bộ luồng chính + thay thế]
+     * Điều phối xử lý khi enemy lọt căn cứ theo Sequence Diagram
+     */
     handleEnemyReachedBase(enemy) {
-        // #3 destroy enemy
         this.destroyEnemy(enemy);
-        // #4 trừ máu căn cứ (damage tham số hóa từ enemy config — không hardcode)
         this.reduceBaseHP(enemy.damage || 1);
-        // #5 cập nhật UI + nháy đỏ
         UI_Manager.updateHPDisplay(Player_Stats.hp);
         UI_Manager.flashScreenRed();
-        // #6 + alt-flow
         if (this.checkGameOver()) {
-            this.stopGameLoop();                    // #7
-            UI_Manager.showGameOverScreen();        // #8
+            this.stopGameLoop();
+            UI_Manager.showGameOverScreen();
         }
     },
 
@@ -595,6 +641,12 @@ const UI_Manager = {
             else alert("Bạn đã hoàn thành tất cả các màn!");
         };
     },
+    /**
+     * [UC05 - Sequence #5.4.1] Chọn loại tháp
+     * Người chơi click chọn một tower slot trên giao diện UI
+     * UI_Manager lưu tower được chọn vào selectedTowerSlot
+     * Đồng thời cập nhật trạng thái selected cho slot hiện tại
+     */
     _bindTowerSlots() {
         document.querySelectorAll('.slot.active').forEach(slot => {
             slot.onclick = () => {
@@ -615,6 +667,12 @@ const UI_Manager = {
             };
         });
     },
+    /**
+     * [UC05 - Sequence #5.4.2] Click vị trí trên bản đồ
+     * Nhận sự kiện click trên canvas game
+     * Lấy tọa độ clickX, clickY của người chơi
+     * Nếu đã chọn tower thì gửi yêu cầu xây tower
+     */
     _bindCanvasClick() {
         this.canvas.onclick = (e) => {
             // BUG FIX: Block tất cả canvas interaction khi pause, game over, hoặc victory
@@ -746,14 +804,17 @@ const UI_Manager = {
         this.interactTower = null;
     },
 
-    /* ---------- HP / Game Over / Victory ---------- */
 
-    /** [Sequence #5] Cập nhật hiển thị HP. */
+    /**
+     * [UC11 - Sequence #11.1.5] Cập nhật hiển thị HP
+     */
     updateHPDisplay(currentHP) {
         document.getElementById('hp-val').innerText = currentHP;
     },
 
-    /** Hiệu ứng nháy đỏ màn hình khi enemy lọt căn cứ. */
+    /**
+     * [UC11 - Sequence #11.1.5] Hiệu ứng nháy đỏ màn hình
+     */
     flashScreenRed() {
         const overlay = document.getElementById('flash-overlay');
         if (!overlay) return;
@@ -766,8 +827,10 @@ const UI_Manager = {
             () => overlay.classList.remove('flash-active'), 400);
     },
 
-    /** [Sequence #8] Hiển thị popup Game Over với nút Retry / Home. */
-    showGameOverScreen() {
+    /**
+     * [UC11 - Sequence #11.2.3 + 11.2.4] Hiển thị popup Game Over
+     * với 2 nút Chơi lại và Màn hình chính
+     */    showGameOverScreen() {
         document.getElementById('go-wave-reached').innerText =
             `${Player_Stats.wave}/${Player_Stats.maxWaves}`;
         document.getElementById('game-over-modal').classList.remove('hidden');
