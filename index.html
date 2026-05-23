@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Kingdom Defense - Pro Edition</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="./style.css">
 </head>
 <body>
 
@@ -16,33 +16,61 @@
     </div>
 </div>
 
-<!-- ===== CAMPAIGN MAP (chưa hoàn thiện) ===== -->
+<!-- ===== CAMPAIGN MAP — UC02: Chọn màn chơi ===== -->
 <div id="campaign-map" class="overlay hidden">
     <div class="top-right-stars">⭐ Total Stars: <span id="total-stars-val">0</span></div>
+
     <div class="map-content">
         <h1>BẢN ĐỒ CHIẾN DỊCH</h1>
-        <div class="level-nodes">
-            <button class="level-node" data-level="1">Level 1</button>
-            <button class="level-node locked" disabled>Level 2</button>
-        </div>
+        <p class="subtitle" style="margin-bottom:20px;">Chọn màn chơi bên dưới</p>
+        <!-- Các level node được render động bởi campaign.js -->
+        <div class="level-nodes"></div>
     </div>
-    <button id="open-upgrade-btn" class="bottom-left-btn">🛡️ Upgrade / Buy Tower</button>
+
+    <div class="campaign-bottom-bar">
+        <button id="open-upgrade-btn" class="campaign-btn-upgrade">⚔️ Mở khóa / Tiến hóa Tháp</button>
+        <button id="back-to-menu-btn" class="campaign-btn-back">← Quay lại</button>
+    </div>
+    <!-- Thông báo động (campaign.js) -->
+    <div id="campaign-msg" style="position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+         font-size:20px;font-weight:bold;text-shadow:2px 2px 4px #000;
+         opacity:0;transition:opacity 0.3s;pointer-events:none;"></div>
 </div>
 
-<!-- ===== UPGRADE SCREEN (placeholder) ===== -->
+<!-- ===== UPGRADE SCREEN — UC20/21/22/23: Mở khóa/Tiến hóa Tháp ===== -->
 <div id="upgrade-screen" class="overlay hidden">
     <div class="upgrade-container">
-        <h2>TOWER UPGRADES</h2>
+        <!-- Phần shop và grid — render động bởi upgrade_system.js -->
         <div id="upgrade-tree-view"></div>
+
+        <!-- Detail panel — UC21: Xem thông tin tháp -->
         <div id="upgrade-details" class="hidden">
-            <h3 id="up-name">Tên nâng cấp</h3>
-            <p id="up-desc">Mô tả chi tiết</p>
-            <p>Giá: <span id="up-cost">0</span> ⭐</p>
+            <h3 id="up-name">Chọn một tháp</h3>
+            <p id="up-desc" style="font-size:13px;line-height:1.5;margin:8px 0;"></p>
+            <p style="margin:6px 0;">Chi phí: <strong id="up-cost" style="color:#f1c40f;">—</strong></p>
+            <div style="display:flex;gap:10px;margin-top:10px;">
+                <button id="confirm-upgrade-btn" disabled
+                        style="flex:1;background:#f39c12;border:2px solid #fff;
+                               border-radius:8px;padding:10px;font-size:15px;
+                               font-weight:bold;color:#fff;cursor:pointer;">
+                    CHỌN THÁP
+                </button>
+                <button id="cancel-upgrade-btn"
+                        style="flex:1;background:#2c3e50;border:2px solid #7f8c8d;
+                               border-radius:8px;padding:10px;font-size:15px;
+                               font-weight:bold;color:#fff;cursor:pointer;">
+                    ← Quay lại
+                </button>
+            </div>
         </div>
-        <div class="upgrade-actions">
-            <button id="cancel-upgrade-btn">HỦY</button>
-            <button id="confirm-upgrade-btn">NÂNG CẤP</button>
-        </div>
+
+        <!-- Nút back khi chưa chọn tháp nào -->
+        <button id="upgrade-back-btn" onclick="Upgrade_System.hide();Campaign_Manager.show();"
+                style="margin-top:12px;background:#2c3e50;border:2px solid #7f8c8d;
+                       border-radius:8px;padding:10px 24px;font-size:15px;
+                       font-weight:bold;color:#fff;cursor:pointer;">
+            ← Quay lại Chiến Dịch
+        </button>
     </div>
 </div>
 
@@ -107,6 +135,24 @@
     <!-- Lớp phủ nháy đỏ khi enemy lọt căn cứ (UC08 Sequence #5) -->
     <div id="flash-overlay"></div>
 
+    <!-- ===== UC09: WAVE UI ELEMENTS ===== -->
+
+    <!-- [09.1.2] Countdown đếm ngược trước wave đầu -->
+    <div id="wave-countdown" class="hidden">3</div>
+
+    <!-- [09.1.1] Banner thông báo wave mới -->
+    <div id="wave-announcement" class="wave-announcement hidden"></div>
+
+    <!-- [09.1.8] Boss health bar overlay -->
+    <div id="boss-hpbar" class="hidden">
+        <div class="boss-hp-text">👹 BOSS  400 / 400</div>
+        <div class="boss-hp-track">
+            <div class="boss-hp-fill" style="width:100%"></div>
+        </div>
+    </div>
+
+    <!-- ===== /UC09 ===== -->
+
     <div id="tower-menu" class="hidden">
         <button id="upgrade-btn" disabled>Nâng cấp</button>
         <button id="sell-btn">Bán (<span id="sell-price">25</span>g)</button>
@@ -117,7 +163,10 @@
 </div>
 
 <!-- Tách config riêng để dễ thêm/sửa map, quái, tháp -->
-<script src="config.js"></script>
-<script src="game.js"></script>
+<script src="./config.js"></script>
+<script src="./game.js"></script>
+<!-- UC02: Campaign map — PHẢI load sau game.js -->
+<script src="./campaign.js"></script>
+<script src="./upgrade_system.js"></script>
 </body>
 </html>
