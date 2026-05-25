@@ -62,13 +62,16 @@ class Enemy {
         Object.assign(this, config);
     }
 
-    /** [Sequence #6] Nhận sát thương */
+    /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.7] Enemy phản hồi lượng máu còn lại */
     takeDamage(dmg) {
         this.hp -= dmg;
         return this.hp;
     }
 
-    /** [Sequence #8, #9] Xử lý khi bị tiêu diệt */
+    /** UC: Tháp tấn công kẻ thù - Xử lý khi kẻ địch bị tiêu diệt
+     *  [Sequence 10.2.7.1] Enemy gọi onDeath() báo Enemy_Manager xóa khỏi bản đồ.
+     *  [Sequence 10.2.7.2] Hệ thống tự động cộng vàng thưởng cho Player.
+     */
     onDeath() {
         Enemy_Manager.onDeath(this);
         Player_Stats.addGold(this.reward);
@@ -168,17 +171,16 @@ class Tower {
         return Math.floor(this.totalSpent * GAME_CONFIG.TOWERS.sellRatio);
     }
 
-    /** [Sequence #1] Cập nhật logic bắn của Tower */
+    /** UC: Tháp tấn công kẻ thù - Cập nhật logic bắn của Tower */
     update() {
         const now = Date.now();
         if (now - this.lastShot < this.cd) return;
 
-        // [Sequence #2] getEnemiesInRange
+        // [Sequence 10.1.2] Tower yêu cầu Enemy_Manager cung cấp danh sách kẻ địch trong tầm.
         const inRange = Enemy_Manager.getEnemiesInRange(this.x, this.y, this.range);
 
-        // [Sequence #3] Tính khoảng cách, chọn mục tiêu (ưu tiên kẻ thù gần đích nhất / đi xa nhất)
+        // [Sequence 10.1.3] Tính khoảng cách, chọn một mục tiêu duy nhất.
         if (inRange.length > 0) {
-            // Chọn mục tiêu có node cao nhất và khoảng cách tới target tiếp theo nhỏ nhất
             let target = inRange[0];
             for (let i = 1; i < inRange.length; i++) {
                 if (inRange[i].node > target.node) {
@@ -190,7 +192,7 @@ class Tower {
                 }
             }
 
-            // [Sequence #4] create Projectile
+            // [Sequence 10.1.4] Khởi tạo Projectile (viên đạn) với tham số mục tiêu và sát thương.
             Projectile.create(this, target);
             this.lastShot = now;
         }
@@ -218,28 +220,26 @@ class Projectile {
         Game_Manager.projectiles.push(p);
     }
 
-    /** [Sequence #5] Cập nhật vị trí và va chạm */
+    /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.5] Cập nhật vị trí và va chạm của viên đạn */
     update() {
         const targetGone = !this.target || this.target.hp <= 0
             || Game_Manager.enemies.indexOf(this.target) === -1;
 
         if (targetGone) {
-            // Bay tiếp theo hướng cũ rồi tự biến mất
             this.x += Math.cos(this.angle) * (this.speed * 0.85);
             this.y += Math.sin(this.angle) * (this.speed * 0.85);
             if (this.x < 0 || this.x > GAME_CONFIG.GAMEPLAY.canvasWidth ||
                 this.y < 0 || this.y > GAME_CONFIG.GAMEPLAY.canvasHeight) {
-                return false; // Để xóa khỏi mảng
+                return false;
             }
             return true;
         }
 
-        // Bay về phía Enemy
         this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
         this.x += Math.cos(this.angle) * this.speed;
         this.y += Math.sin(this.angle) * this.speed;
 
-        // [Sequence #6] Cho đến khi va chạm
+        // [Sequence 10.1.6] Projectile gọi takeDamage() lên đối tượng Enemy.
         if (Math.hypot(this.target.x - this.x, this.target.y - this.y) < 15) {
             if (this.attackType === 'aoe') {
                 Game_Manager.explosions.push({
@@ -248,13 +248,13 @@ class Projectile {
                 });
                 Game_Manager.enemies.forEach(e => {
                     if (Math.hypot(e.x - this.x, e.y - this.y) < this.expRad) {
-                        e.takeDamage(this.dmg); // [Sequence #6]
+                        e.takeDamage(this.dmg); 
                     }
                 });
             } else {
-                this.target.takeDamage(this.dmg); // [Sequence #6]
+                this.target.takeDamage(this.dmg); 
             }
-            return false; // Va chạm xong thì xóa
+            return false;
         }
         return true;
     }
@@ -494,10 +494,10 @@ const Game_Manager = {
             }
         }
 
-        // [Sequence #1] Tower.update()
+        // UC: Tháp tấn công kẻ thù - [Sequence 10.1.1] Game_Loop gọi hàm update() để cập nhật trạng thái của Tower.
         this.towers.forEach(t => t.update());
 
-        // [Sequence #5] Projectile.update()
+        // UC: Tháp tấn công kẻ thù - [Sequence 10.1.5] Gọi update() trên Projectile để di chuyển viên đạn.
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             if (!this.projectiles[i].update()) {
                 this.projectiles.splice(i, 1);
