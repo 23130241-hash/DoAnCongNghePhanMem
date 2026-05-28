@@ -114,6 +114,10 @@ const Campaign_Manager = {
         Object.keys(levels).forEach((id, idx) => {
             const levelId = parseInt(id);
             const lvData  = levels[levelId];
+
+            // [UC09 - WIP] Bỏ qua level đang phát triển (cờ wip trong config)
+            if (lvData.wip) return;
+
             const stars   = completed[levelId] || 0;
 
             // Level 1 luôn mở; các level sau cần màn trước hoàn thành

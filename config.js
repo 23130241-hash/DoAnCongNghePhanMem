@@ -55,6 +55,30 @@ const GAME_CONFIG = {
                 { x: 570, y: 450 }, { x: 800, y: 350 }
             ],
             base: { x: 900, y: 500, radius: 60 }
+        },
+
+        /* [UC09 - Commit 1] Map 3 — Pháo đài bóng tối
+         * Theme tối, đường đi dạng zigzag dài hơn để tăng độ khó,
+         * tạo thử thách cho boss wave ở level 3.                     */
+        map03: {
+            name: "Pháo đài bóng tối",
+            background: "#1a0f0a",
+            pathColor: "#5d4037",
+            pathInnerColor: "#3e2723",
+            path: [
+                { x: -50, y: 250 }, { x: 150, y: 250 },
+                { x: 150, y: 100 }, { x: 350, y: 100 },
+                { x: 350, y: 400 }, { x: 550, y: 400 },
+                { x: 550, y: 200 }, { x: 750, y: 200 },
+                { x: 750, y: 500 }, { x: 950, y: 500 }
+            ],
+            buildSpots: [
+                { x: 80,  y: 180 }, { x: 240, y: 180 },
+                { x: 260, y: 320 }, { x: 450, y: 250 },
+                { x: 450, y: 480 }, { x: 650, y: 120 },
+                { x: 650, y: 320 }, { x: 820, y: 350 }
+            ],
+            base: { x: 900, y: 500, radius: 60 }
         }
     },
 
@@ -67,7 +91,13 @@ const GAME_CONFIG = {
     ENEMIES: {
         creep:      { name: "Creep",  hp: 40,  speed: 1.2, reward: 15, size: 16, damage: 1, color: '#c0392b', icon: '👾' },
         fast_creep: { name: "Scout",  hp: 25,  speed: 2.0, reward: 20, size: 14, damage: 1, color: '#8e44ad', icon: '🏃' },
-        tank:       { name: "Tank",   hp: 150, speed: 0.6, reward: 40, size: 22, damage: 3, color: '#2c3e50', icon: '🛡️' }
+        tank:       { name: "Tank",   hp: 150, speed: 0.6, reward: 40, size: 22, damage: 3, color: '#2c3e50', icon: '🛡️' },
+
+        /* [UC09 - Commit 1] Boss enemy — loại quái đặc biệt
+         * isBoss: true  → Wave_Manager sẽ hiển thị cảnh báo đặc biệt
+         *                  và render health bar riêng trên giao diện.
+         * Spawn bởi wave_manager.js khi gặp wave có boss type.       */
+        boss:       { name: "Boss",   hp: 400, speed: 0.4, reward: 100, size: 30, damage: 5, color: '#8b0000', icon: '👹', isBoss: true }
     },
 
     /* -----------------------------------------------------------------
@@ -135,6 +165,38 @@ const GAME_CONFIG = {
                 { enemyType: 'fast_creep', count: 18, interval: 700 },
                 { enemyType: 'tank',       count: 5,  interval: 2000 },
                 { enemyType: 'fast_creep', count: 25, interval: 600 }
+            ]
+        },
+
+        /* [UC09 - Commit 1] Level 3 — Pháo đài bóng tối
+         * Sử dụng format wave mới hỗ trợ mixed enemy types (groups).
+         * wave_manager.js sẽ nhận ra format { groups: [...] } và
+         * spawn tuần tự từng group trong cùng một wave.
+         * Wave cuối là boss wave — sẽ trigger cảnh báo đặc biệt.  */
+        3: {
+            // [UC09 - WIP] Ẩn khỏi campaign UI cho tới khi wave_manager.js
+            // hỗ trợ format groups (dự kiến COMMIT 10 — 16/06).
+            wip: true,
+            name: "Pháo đài bóng tối",
+            mapId: "map03",
+            startMoney: 400,
+            startHP: 20,
+            waveDelay: 9000,
+            waves: [
+                // Wave đơn giản (format cũ — backward compatible)
+                { enemyType: 'tank', count: 8, interval: 1500 },
+
+                // Wave hỗn hợp (format mới — groups)
+                // [UC09] wave_manager._spawnGroups() xử lý format này
+                {
+                    groups: [
+                        { enemyType: 'fast_creep', count: 10, interval: 500 },
+                        { enemyType: 'tank',        count: 4,  interval: 1800 }
+                    ]
+                },
+
+                // Boss wave — isBoss=true sẽ trigger cảnh báo đỏ
+                { enemyType: 'boss', count: 1, interval: 5000 }
             ]
         }
     },
