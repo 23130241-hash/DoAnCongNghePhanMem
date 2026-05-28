@@ -972,10 +972,21 @@ const UI_Manager = {
 
         // Projectiles
         Game_Manager.projectiles.forEach(p => {
+            ctx.save();
             ctx.fillStyle = p.color;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = p.color;
+            
+            // Vẽ viền để nổi bật trên mọi nền bản đồ
+            ctx.strokeStyle = "#fff";
+            ctx.lineWidth = 2;
+
             ctx.beginPath();
-            ctx.arc(p.x, p.y, p.attackType === 'aoe' ? 8 : 5, 0, Math.PI * 2);
+            const radius = p.attackType === 'aoe' ? 8 : 5;
+            ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
             ctx.fill();
+            ctx.stroke();
+            ctx.restore();
         });
 
         // Explosions
