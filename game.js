@@ -179,16 +179,23 @@ class Tower {
         // [Sequence 10.1.2] Tower yêu cầu Enemy_Manager cung cấp danh sách kẻ địch trong tầm.
         const inRange = Enemy_Manager.getEnemiesInRange(this.x, this.y, this.range);
 
-        // [Sequence 10.1.3] Tính khoảng cách, chọn một mục tiêu duy nhất.
+        // [Sequence 10.1.3] Chọn mục tiêu dẫn đầu (đi xa nhất trên đường đi)
         if (inRange.length > 0) {
             let target = inRange[0];
             for (let i = 1; i < inRange.length; i++) {
-                if (inRange[i].node > target.node) {
-                    target = inRange[i];
-                } else if (inRange[i].node === target.node) {
-                    const dTarget = Math.hypot(target.x - this.x, target.y - this.y);
-                    const dNext = Math.hypot(inRange[i].x - this.x, inRange[i].y - this.y);
-                    if (dNext < dTarget) target = inRange[i];
+                const enemy = inRange[i];
+                // Ưu tiên kẻ địch ở waypoint (node) xa hơn
+                if (enemy.node > target.node) {
+                    target = enemy;
+                } 
+                // Nếu cùng node, chọn kẻ địch gần waypoint tiếp theo hơn (dẫn đầu thực sự)
+                else if (enemy.node === target.node) {
+                    const nextPoint = Map_Grid.path[enemy.node];
+                    if (nextPoint) {
+                        const distTarget = Math.hypot(target.x - nextPoint.x, target.y - nextPoint.y);
+                        const distEnemy = Math.hypot(enemy.x - nextPoint.x, enemy.y - nextPoint.y);
+                        if (distEnemy < distTarget) target = enemy;
+                    }
                 }
             }
 
