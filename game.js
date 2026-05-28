@@ -641,6 +641,11 @@ const UI_Manager = {
                 Game_Manager.isPaused ? "▶️" : "⏸️";
         };
         document.getElementById('retry-btn').onclick = () => this.restartLevel();
+        document.getElementById('home-btn').onclick = () => {
+            if (confirm("Dừng trận chiến và quay về màn hình chính?")) {
+                this.backToMainMenu();
+            }
+        };
         document.getElementById('restart-victory-btn').onclick = () => this.restartLevel();
         document.getElementById('next-level-btn').onclick = () => {
             const next = currentLevel + 1;
@@ -805,6 +810,13 @@ const UI_Manager = {
         menu.classList.remove('hidden');
         menu.style.left = tower.x + 'px';
         menu.style.top = tower.y + 'px';
+
+        // Tự động đổi hướng menu nếu tháp nằm quá sát mép trên màn hình
+        if (tower.y < 180) {
+            menu.style.transform = "translate(-50%, 30px)"; // Hiện phía dưới tháp
+        } else {
+            menu.style.transform = "translate(-50%, calc(-100% - 30px))"; // Hiện phía trên tháp
+        }
     },
     hideTowerMenu() {
         document.getElementById('tower-menu').classList.add('hidden');
