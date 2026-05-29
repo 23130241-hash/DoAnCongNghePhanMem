@@ -60,6 +60,23 @@ const Player_Stats = {
 class Enemy {
     constructor(config) {
         Object.assign(this, config);
+        this.baseSpeed = config.speed;
+        this.effects = [];
+    }
+
+    /** Cập nhật hiệu ứng và tốc độ - Cần thiết cho logic Sub-stepping */
+    updateEffects(dt) {
+        let speedMultiplier = 1;
+        for (let i = this.effects.length - 1; i >= 0; i--) {
+            const effect = this.effects[i];
+            effect.duration -= dt;
+            if (effect.duration <= 0) {
+                this.effects.splice(i, 1);
+            } else {
+                if (effect.type === 'slow') speedMultiplier *= effect.factor;
+            }
+        }
+        this.speed = this.baseSpeed * speedMultiplier;
     }
 
     /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.7] Enemy phản hồi lượng máu còn lại */
@@ -134,7 +151,7 @@ const Map_Grid = {
 class Tower {
     constructor(x, y, type) {
         this.x = x; this.y = y; this.type = type;
-        this.lastShot = 0;
+        this.cooldownTimer = 0;             // Timer đếm ngược hồi chiêu
         this.level = 1;                     // Bắt đầu cấp 1
         this.totalSpent = 0;                // Tổng tiền đã chi (dùng cho công thức bán)
         this._applyLevelStats();
@@ -172,9 +189,11 @@ class Tower {
     }
 
     /** UC: Tháp tấn công kẻ thù - Cập nhật logic bắn của Tower */
-    update() {
-        const now = Date.now();
-        if (now - this.lastShot < this.cd) return;
+    update(dt) {
+        if (this.cooldownTimer > 0) {
+            this.cooldownTimer -= dt;
+            return;
+        }
 
         // [Sequence 10.1.2] Tower yêu cầu Enemy_Manager cung cấp danh sách kẻ địch trong tầm.
         const inRange = Enemy_Manager.getEnemiesInRange(this.x, this.y, this.range);
@@ -184,11 +203,9 @@ class Tower {
             let target = inRange[0];
             for (let i = 1; i < inRange.length; i++) {
                 const enemy = inRange[i];
-                // Ưu tiên kẻ địch ở waypoint (node) xa hơn
                 if (enemy.node > target.node) {
                     target = enemy;
                 } 
-                // Nếu cùng node, chọn kẻ địch gần waypoint tiếp theo hơn (dẫn đầu thực sự)
                 else if (enemy.node === target.node) {
                     const nextPoint = Map_Grid.path[enemy.node];
                     if (nextPoint) {
@@ -201,7 +218,7 @@ class Tower {
 
             // [Sequence 10.1.4] Khởi tạo Projectile (viên đạn) với tham số mục tiêu và sát thương.
             Projectile.create(this, target);
-            this.lastShot = now;
+            this.cooldownTimer = this.cd; // Gán lại hồi chiêu
         }
     }
 }
@@ -281,11 +298,21 @@ const Game_Manager = {
     isGameOver: false,
     isVictory: false,
     isPaused: false,
+    gameSpeed: 1,
+
+    isSpeedUnlocked() {
+        if (Player_Stats.wave > 1) return true;
+        if (Player_Stats.wave === 1) {
+            const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[0];
+            return this.enemiesSpawnedThisWave >= waveData.count && this.enemies.length === 0;
+        }
+        return false;
+    },
 
     enemiesSpawnedThisWave: 0,
-    _spawnInterval: null,    // ID setInterval của wave hiện tại
-    _waveTimeout: null,      // ID setTimeout chờ wave kế tiếp
-    _rafId: null,            // ID requestAnimationFrame của render loop
+    waveTimer: 0,      // Đếm ngược tới wave tiếp theo
+    spawnTimer: 0,     // Khoảng cách giữa các quái
+    _rafId: null,      // ID requestAnimationFrame của render loop
 
     /* ---------- Bắt đầu / Reset ---------- */
 
@@ -308,25 +335,21 @@ const Game_Manager = {
         this.isGameOver = false;
         this.isVictory = false;
         this.isPaused = false;
+        this.gameSpeed = 1;
 
         UI_Manager.updateUI();
+        document.getElementById('speed-btn').innerText = "1x";
         UI_Manager.hideGameOver();
         UI_Manager.hideVictory();
 
-        this._waveTimeout = setTimeout(() => this.spawnWave(),
-            GAME_CONFIG.GAMEPLAY.firstWaveDelay);
+        this.waveTimer = GAME_CONFIG.GAMEPLAY.firstWaveDelay;
+        this.spawnTimer = 0;
     },
 
-    /** BUG FIX: Hàm dọn dẹp tập trung tất cả timers để tránh rò rỉ */
+    /** BUG FIX: Hàm dọn dẹp tập trung tất cả timers */
     _clearAllTimers() {
-        if (this._spawnInterval) {
-            clearInterval(this._spawnInterval);
-            this._spawnInterval = null;
-        }
-        if (this._waveTimeout) {
-            clearTimeout(this._waveTimeout);
-            this._waveTimeout = null;
-        }
+        this.waveTimer = 0;
+        this.spawnTimer = 0;
     },
 
     /* ---------- Tower lifecycle ---------- */
@@ -490,10 +513,19 @@ const Game_Manager = {
     updateGameLoop() {
         if (!this.isPlaying || this.isPaused || this.isGameOver) return;
 
-        // ---- Enemies ----
-        // Duyệt một bản sao để có thể destroy ngay trong vòng lặp
+        // Chạy logic N lần dựa trên tốc độ game (Sub-stepping)
+        // Điều này đảm bảo mọi thứ nhanh hơn nhưng vẫn giữ nguyên độ chính xác vật lý
+        for (let i = 0; i < this.gameSpeed; i++) {
+            this._tickLogic(16.67);
+            if (this.isGameOver || this.isVictory) break;
+        }
+    },
+
+    _tickLogic(dt) {
+        // 1. Cập nhật vị trí và va chạm Kẻ thù
         const enemiesSnapshot = this.enemies.slice();
         for (const enemy of enemiesSnapshot) {
+            enemy.updateEffects(dt); 
             this.updateEnemyPosition(enemy);
             if (this.checkBaseCollision(enemy)) {
                 this.handleEnemyReachedBase(enemy);
@@ -501,25 +533,27 @@ const Game_Manager = {
             }
         }
 
-        // UC: Tháp tấn công kẻ thù - [Sequence 10.1.1] Game_Loop gọi hàm update() để cập nhật trạng thái của Tower.
-        this.towers.forEach(t => t.update());
+        // 2. Tháp tấn công
+        this.towers.forEach(t => t.update(dt));
 
-        // UC: Tháp tấn công kẻ thù - [Sequence 10.1.5] Gọi update() trên Projectile để di chuyển viên đạn.
+        // 3. Đạn di chuyển
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             if (!this.projectiles[i].update()) {
                 this.projectiles.splice(i, 1);
             }
         }
 
-        // Sau khi đạn bắn, kiểm tra xem có enemy nào chết không
+        // 4. Spawn quái
+        this.updateSpawning(dt);
+
+        // 5. Kiểm tra quái chết
         this.checkEnemyDeath();
 
-        // ---- Explosions ----
-        const grow = GAME_CONFIG.GAMEPLAY.explosionGrowthRate;
-        const fade = GAME_CONFIG.GAMEPLAY.explosionFadeRate;
+        // 6. Hiệu ứng nổ (visual nhẹ)
         for (let i = this.explosions.length - 1; i >= 0; i--) {
             const ex = this.explosions[i];
-            ex.radius += grow; ex.alpha -= fade;
+            ex.radius += GAME_CONFIG.GAMEPLAY.explosionGrowthRate; 
+            ex.alpha -= GAME_CONFIG.GAMEPLAY.explosionFadeRate;
             if (ex.alpha <= 0) this.explosions.splice(i, 1);
         }
 
@@ -544,59 +578,56 @@ const Game_Manager = {
 
     /* ---------- Spawn waves ---------- */
 
-    spawnWave() {
-        // BUG FIX: Kiểm tra isGameOver VÀ isPlaying để dừng spawn khi cần
-        if (this.isGameOver || !this.isPlaying || Player_Stats.wave >= Player_Stats.maxWaves) return;
+    updateSpawning(dt) {
+        if (Player_Stats.wave > Player_Stats.maxWaves) return;
 
-        const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave];
-        const enemyStats = GAME_CONFIG.ENEMIES[waveData.enemyType];
-        if (!enemyStats) {
-            console.error(`Không tìm thấy enemy type: ${waveData.enemyType}`); return;
+        // Nếu đang trong thời gian chờ wave
+        if (this.waveTimer > 0) {
+            this.waveTimer -= dt;
+            if (this.waveTimer <= 0) {
+                this.startNextWave();
+            }
+            return;
         }
 
+        // Nếu đang trong quá trình spawn quái của wave hiện tại
+        const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
+        if (!waveData) return;
+
+        if (this.enemiesSpawnedThisWave < waveData.count) {
+            this.spawnTimer -= dt;
+            if (this.spawnTimer <= 0) {
+                this.spawnEnemy(waveData.enemyType);
+                this.spawnTimer = waveData.interval;
+            }
+        } else if (this.enemies.length === 0 && Player_Stats.wave < Player_Stats.maxWaves) {
+            // Đã spawn hết và chết hết quái -> Chờ wave sau
+            this.waveTimer = GAME_CONFIG.LEVELS[currentLevel].waveDelay || 3000;
+        }
+    },
+
+    startNextWave() {
+        if (Player_Stats.wave >= Player_Stats.maxWaves) return;
         Player_Stats.wave++;
         UI_Manager.updateUI();
         this.enemiesSpawnedThisWave = 0;
+        this.spawnTimer = 0; // Spawn quái đầu tiên ngay lập tức
+    },
 
-        // BUG FIX: Clear interval cũ trước khi tạo mới (phòng trường hợp double-call)
-        if (this._spawnInterval) {
-            clearInterval(this._spawnInterval);
-            this._spawnInterval = null;
-        }
-
-        this._spawnInterval = setInterval(() => {
-            // BUG FIX: Kiểm tra đầy đủ — nếu game đã kết thúc/không chơi thì clear và thoát
-            if (this.isPaused) return; // Pause thì chờ, không clear
-            if (this.isGameOver || !this.isPlaying) {
-                clearInterval(this._spawnInterval);
-                this._spawnInterval = null;
-                return;
-            }
-
-            this.enemies.push(new Enemy({
-                x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
-                hp: enemyStats.hp, maxHp: enemyStats.hp,
-                speed: enemyStats.speed,
-                node: 1,
-                size: enemyStats.size,
-                reward: enemyStats.reward,
-                damage: enemyStats.damage,
-                color: enemyStats.color,
-                type: waveData.enemyType
-            }));
-            this.enemiesSpawnedThisWave++;
-
-            if (this.enemiesSpawnedThisWave >= waveData.count) {
-                clearInterval(this._spawnInterval);
-                this._spawnInterval = null;
-                if (Player_Stats.wave < Player_Stats.maxWaves && this.isPlaying && !this.isGameOver) {
-                    this._waveTimeout = setTimeout(
-                        () => this.spawnWave(),
-                        GAME_CONFIG.LEVELS[currentLevel].waveDelay
-                    );
-                }
-            }
-        }, waveData.interval);
+    spawnEnemy(type) {
+        const enemyStats = GAME_CONFIG.ENEMIES[type];
+        this.enemies.push(new Enemy({
+            x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
+            hp: enemyStats.hp, maxHp: enemyStats.hp,
+            speed: enemyStats.speed,
+            node: 1,
+            size: enemyStats.size,
+            reward: enemyStats.reward,
+            damage: enemyStats.damage,
+            color: enemyStats.color,
+            type: type
+        }));
+        this.enemiesSpawnedThisWave++;
     }
 };
 
@@ -644,6 +675,14 @@ const UI_Manager = {
         document.getElementById('home-btn').onclick = () => {
             if (confirm("Dừng trận chiến và quay về màn hình chính?")) {
                 this.backToMainMenu();
+            }
+        };
+        document.getElementById('speed-btn').onclick = () => {
+            const current = Game_Manager.gameSpeed;
+            // Chỉ cho phép click nếu đã qua Wave 1
+            if (Game_Manager.isSpeedUnlocked()) {
+                Game_Manager.gameSpeed = (current === 1) ? 2 : 1;
+                document.getElementById('speed-btn').innerText = Game_Manager.gameSpeed + "x";
             }
         };
         document.getElementById('restart-victory-btn').onclick = () => this.restartLevel();
@@ -877,6 +916,18 @@ const UI_Manager = {
         document.getElementById('gold-val').innerText = Math.floor(Player_Stats.money);
         document.getElementById('wave-val').innerText =
             `${Player_Stats.wave}/${Player_Stats.maxWaves}`;
+
+        // Cập nhật trạng thái nút Speed (Mờ khi đang ở wave 1, Sáng ngay khi xong wave 1)
+        const speedBtn = document.getElementById('speed-btn');
+        if (speedBtn) {
+            if (Game_Manager.isSpeedUnlocked()) {
+                speedBtn.style.opacity = "1";
+                speedBtn.style.cursor = "pointer";
+            } else {
+                speedBtn.style.opacity = "0.3";
+                speedBtn.style.cursor = "not-allowed";
+            }
+        }
     },
     showError(msg, color) {
         const msgDiv = document.getElementById('ui-messages');
