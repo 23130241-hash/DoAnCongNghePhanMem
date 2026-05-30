@@ -93,6 +93,12 @@ const GAME_CONFIG = {
         fast_creep: { name: "Scout",  hp: 25,  speed: 2.0, reward: 20, size: 14, damage: 1, color: '#8e44ad', icon: '🏃' },
         tank:       { name: "Tank",   hp: 150, speed: 0.6, reward: 40, size: 22, damage: 3, color: '#2c3e50', icon: '🛡️' },
 
+        /* [UC09 - Commit 1] Skeleton — quái độc quyền map03 (Pháo đài bóng tối)
+         * Đặc trưng: máu trung bình, tốc độ khá nhanh, sát thương 2 —
+         * mạnh hơn creep nhưng yếu hơn tank. Tạo cảm giác riêng cho
+         * theme "undead fortress" của map03.                          */
+        skeleton:   { name: "Skeleton", hp: 60, speed: 1.3, reward: 25, size: 18, damage: 2, color: '#ecf0f1', icon: '💀' },
+
         /* [UC09 - Commit 1] Boss enemy — loại quái đặc biệt
          * isBoss: true  → Wave_Manager sẽ hiển thị cảnh báo đặc biệt
          *                  và render health bar riêng trên giao diện.
@@ -183,19 +189,20 @@ const GAME_CONFIG = {
             startHP: 20,
             waveDelay: 9000,
             waves: [
-                // Wave đơn giản (format cũ — backward compatible)
-                { enemyType: 'tank', count: 8, interval: 1500 },
+                // Wave 1 — giới thiệu Skeleton (quái độc quyền map03)
+                { enemyType: 'skeleton', count: 12, interval: 800 },
 
-                // Wave hỗn hợp (format mới — groups)
+                // Wave 2 — Wave hỗn hợp (format mới — groups)
                 // [UC09] wave_manager._spawnGroups() xử lý format này
                 {
                     groups: [
+                        { enemyType: 'skeleton',   count: 8,  interval: 600 },
                         { enemyType: 'fast_creep', count: 10, interval: 500 },
-                        { enemyType: 'tank',        count: 4,  interval: 1800 }
+                        { enemyType: 'tank',       count: 4,  interval: 1800 }
                     ]
                 },
 
-                // Boss wave — isBoss=true sẽ trigger cảnh báo đỏ
+                // Wave 3 — Boss wave (isBoss=true sẽ trigger cảnh báo đỏ)
                 { enemyType: 'boss', count: 1, interval: 5000 }
             ]
         }

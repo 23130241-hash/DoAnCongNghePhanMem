@@ -304,14 +304,13 @@ const Game_Manager = {
         if (Player_Stats.wave > 1) return true;
         if (Player_Stats.wave === 1) {
             const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[0];
-            return this.enemiesSpawnedThisWave >= waveData.count && this.enemies.length === 0;
+            // [UC09] enemiesSpawnedThisWave đã chuyển sang Wave_Manager
+            return Wave_Manager.enemiesSpawnedThisWave >= waveData.count
+                && this.enemies.length === 0;
         }
         return false;
     },
 
-    enemiesSpawnedThisWave: 0,
-    waveTimer: 0,      // Đếm ngược tới wave tiếp theo
-    spawnTimer: 0,     // Khoảng cách giữa các quái
     _rafId: null,      // ID requestAnimationFrame của render loop
 
     /* ---------- Bắt đầu / Reset ---------- */
@@ -329,7 +328,6 @@ const Game_Manager = {
         this.enemies = [];
         this.projectiles = [];
         this.explosions = [];
-        this.enemiesSpawnedThisWave = 0;
 
         this.isPlaying = true;
         this.isGameOver = false;
@@ -342,14 +340,14 @@ const Game_Manager = {
         UI_Manager.hideGameOver();
         UI_Manager.hideVictory();
 
-        this.waveTimer = GAME_CONFIG.GAMEPLAY.firstWaveDelay;
-        this.spawnTimer = 0;
+        // [UC09] Toàn bộ state spawn đã chuyển sang Wave_Manager
+        Wave_Manager.startLevel(levelId);
     },
 
     /** BUG FIX: Hàm dọn dẹp tập trung tất cả timers */
     _clearAllTimers() {
-        this.waveTimer = 0;
-        this.spawnTimer = 0;
+        // [UC09] Wave timers đã thuộc Wave_Manager
+        Wave_Manager.reset();
     },
 
     /* ---------- Tower lifecycle ---------- */
@@ -543,8 +541,8 @@ const Game_Manager = {
             }
         }
 
-        // 4. Spawn quái
-        this.updateSpawning(dt);
+        // 4. Spawn quái — [UC09] đã chuyển sang Wave_Manager
+        Wave_Manager.update(dt);
 
         // 5. Kiểm tra quái chết
         this.checkEnemyDeath();
@@ -561,7 +559,7 @@ const Game_Manager = {
         const currentWaveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
         if (Player_Stats.wave === Player_Stats.maxWaves &&
             currentWaveData &&
-            this.enemiesSpawnedThisWave >= currentWaveData.count &&
+            Wave_Manager.enemiesSpawnedThisWave >= (currentWaveData.count || 0) &&
             this.enemies.length === 0) {
             this.isVictory = true;
             this.stopGameLoop();
@@ -576,59 +574,11 @@ const Game_Manager = {
         UI_Manager.updateUI();
     },
 
-    /* ---------- Spawn waves ---------- */
-
-    updateSpawning(dt) {
-        if (Player_Stats.wave > Player_Stats.maxWaves) return;
-
-        // Nếu đang trong thời gian chờ wave
-        if (this.waveTimer > 0) {
-            this.waveTimer -= dt;
-            if (this.waveTimer <= 0) {
-                this.startNextWave();
-            }
-            return;
-        }
-
-        // Nếu đang trong quá trình spawn quái của wave hiện tại
-        const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
-        if (!waveData) return;
-
-        if (this.enemiesSpawnedThisWave < waveData.count) {
-            this.spawnTimer -= dt;
-            if (this.spawnTimer <= 0) {
-                this.spawnEnemy(waveData.enemyType);
-                this.spawnTimer = waveData.interval;
-            }
-        } else if (this.enemies.length === 0 && Player_Stats.wave < Player_Stats.maxWaves) {
-            // Đã spawn hết và chết hết quái -> Chờ wave sau
-            this.waveTimer = GAME_CONFIG.LEVELS[currentLevel].waveDelay || 3000;
-        }
-    },
-
-    startNextWave() {
-        if (Player_Stats.wave >= Player_Stats.maxWaves) return;
-        Player_Stats.wave++;
-        UI_Manager.updateUI();
-        this.enemiesSpawnedThisWave = 0;
-        this.spawnTimer = 0; // Spawn quái đầu tiên ngay lập tức
-    },
-
-    spawnEnemy(type) {
-        const enemyStats = GAME_CONFIG.ENEMIES[type];
-        this.enemies.push(new Enemy({
-            x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
-            hp: enemyStats.hp, maxHp: enemyStats.hp,
-            speed: enemyStats.speed,
-            node: 1,
-            size: enemyStats.size,
-            reward: enemyStats.reward,
-            damage: enemyStats.damage,
-            color: enemyStats.color,
-            type: type
-        }));
-        this.enemiesSpawnedThisWave++;
-    }
+    /* ---------- Spawn waves ----------
+     * [UC09] Toàn bộ logic spawn (updateSpawning / startNextWave /
+     * spawnEnemy) đã được chuyển sang Wave_Manager (xem wave_manager.js).
+     * Game_Manager chỉ delegate Wave_Manager.update(dt) trong _tickLogic.
+     */
 };
 
 // =====================================================================
