@@ -95,10 +95,40 @@ class Enemy {
         return this.hp;
     }
 
-    /** [Sequence #8, #9] Xử lý khi bị tiêu diệt */
+    /** [Sequence #8, #9] Xử lý khi bị tiêu diệt bởi tháp */
     onDeath() {
         Enemy_Manager.onDeath(this);
         Player_Stats.addGold(this.reward);
+    }
+
+    /* ------------------------------------------------------------------
+     * [CẢI TIẾN  — Nguyễn Lê Tiến Đạt | UC08]
+     * ------------------------------------------------------------------
+     * Vấn đề cũ:
+     *   handleEnemyReachedBase() trong Game_Manager gọi destroyEnemy(this)
+     *   rồi mới gọi reduceBaseHP(). Enemy bị xóa khỏi mảng TRƯỚC khi nó
+     *   "thực sự" báo cáo thiệt hại → vi phạm thứ tự step #3 → #4 trong
+     *   sequence diagram (destroy phải là hệ quả của checkBaseCollision,
+     *   không phải điều kiện của reduceBaseHP).
+     *   Ngoài ra, việc enemy chạm căn cứ được xử lý hoàn toàn bởi
+     *   Game_Manager — enemy không tự chịu trách nhiệm về hành động của mình.
+     *
+     * Giải pháp:
+     *   Thêm method onReachBase() vào Enemy — khi enemy đến đích, nó TỰ
+     *   ủy quyền cho Game_Manager xử lý hậu quả, đúng với vai trò "Enemy
+     *   tự hủy và xóa khỏi mảng" trong sequence diagram.
+     *   Luồng mới (đúng thứ tự step):
+     *     updateGameLoop → checkBaseCollision (step #2)
+     *       → enemy.onReachBase()            (step #3 Enemy tự hủy)
+     *         → Game_Manager.handleEnemyReachedBase(this)
+     *           → destroyEnemy(enemy)        (step #3 xóa khỏi mảng)
+     *           → reduceBaseHP(damage)       (step #4 trừ máu)
+     *           → updateHPDisplay / flash    (step #5)
+     *           → checkGameOver              (step #6)
+     * ------------------------------------------------------------------*/
+    onReachBase() {
+        // Enemy tự kích hoạt luồng "chạm căn cứ" — Game_Manager xử lý hậu quả
+        Game_Manager.handleEnemyReachedBase(this);
     }
 }
 
@@ -427,27 +457,77 @@ const Game_Manager = {
         return Player_Stats.hp <= 0;
     },
 
-    /** [Sequence #7] Dừng toàn bộ vòng lặp game. */
+    /* =================================================================
+     * [CẢI TIẾN 4 — Nguyễn Lê Tiến Đạt | UC08 — step #7]
+     * =================================================================
+     * Vấn đề cũ của stopGameLoop():
+     *   isPlaying = false; isGameOver = true; _clearAllTimers();
+     *   → Chỉ cancel RAF và dừng timer wave, THIẾU:
+     *     (a) _spawnInterval đang chạy → quái vẫn spawn thêm vào
+     *         this.enemies[] sau khi game over (visible lag ~1-2 quái).
+     *     (b) this.projectiles[] giữ các đạn đang bay →
+     *         khi restartLevel() gọi startLevel(), projectiles cũ
+     *         từ session trước vẫn tồn tại → có thể gây double-kill
+     *         hoặc trừ tiền ảo cho session mới.
+     *     (c) this.explosions[] tương tự (d) _waveTimeout chờ → wave
+     *         mới vẫn trigger dù game đã kết thúc.
+     *
+     * Giải pháp (step #7 trong sequence diagram):
+     *   Khi stopGameLoop() được gọi do currentHP ≤ 0 (hoặc victory),
+     *   thực hiện cleanup NGAY LẬP TỨC theo thứ tự an toàn:
+     *     1. Set flag trước (ngăn updateGameLoop() chạy thêm 1 frame)
+     *     2. _clearAllTimers() — dừng spawn + wave timeout
+     *     3. Flush projectiles[] và explosions[] — không để dư
+     *     4. cancelAnimationFrame(_rafId) — dừng render loop cuối
+     * =================================================================*/
+    /** [Sequence #7] Dừng toàn bộ vòng lặp game và giải phóng tài nguyên. */
     stopGameLoop() {
-        this.isPlaying = false;
-        this.isGameOver = true;
-        // BUG FIX: Dùng _clearAllTimers() thay vì xử lý rời rạc
+        // Bước 1: set flag ngay để updateGameLoop() thoát ở frame kế tiếp
+        this.isPlaying   = false;
+        this.isGameOver  = true;
+
+        // Bước 2: dừng tất cả timer spawn (cải tiến 4a, 4d)
+        // _clearAllTimers() xử lý cả _spawnInterval lẫn _waveTimeout
         this._clearAllTimers();
+
+        // Bước 3: xóa projectiles và explosions còn sót (cải tiến 4b, 4c)
+        // Không để đạn cũ tiếp tục va chạm hoặc trừ máu trong frame cuối
+        this.projectiles = [];
+        this.explosions  = [];
+
+        // Bước 4: cancel RAF — render loop dừng hoàn toàn
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
     },
 
-    /** Toàn bộ flow xử lý 1 enemy chạm căn cứ — đúng theo Sequence Diagram. */
+    /* ------------------------------------------------------------------
+     * [CẢI TIẾN 5 — Nguyễn Lê Tiến Đạt | UC08]
+     * ------------------------------------------------------------------
+     * Hàm này KHÔNG còn được gọi trực tiếp từ updateGameLoop().
+     * Thay vào đó, nó được gọi qua enemy.onReachBase() — đúng với mô
+     * hình sequence diagram: enemy là chủ thể khởi phát "tự hủy",
+     * Game_Manager chỉ xử lý hậu quả (trừ máu, kiểm tra game over).
+     *
+     * Thứ tự đúng theo sequence (step #3 → #4 → #5 → #6):
+     *   #3: destroyEnemy(enemy) — xóa khỏi mảng TRƯỚC
+     *   #4: reduceBaseHP(damage) — trừ máu SAU KHI enemy đã bị xóa
+     *   #5: updateHPDisplay + flashScreenRed
+     *   #6: checkGameOver → nếu true: step #7 + #8
+     * ------------------------------------------------------------------*/
     handleEnemyReachedBase(enemy) {
-        // #3 destroy enemy
+        // Step #3 — Enemy tự hủy và xóa khỏi mảng (ủy quyền từ onReachBase)
         this.destroyEnemy(enemy);
-        // #4 trừ máu căn cứ (damage tham số hóa từ enemy config — không hardcode)
+        // Step #4 — Trừ máu căn cứ (damage tham số hóa, không hardcode)
         this.reduceBaseHP(enemy.damage || 1);
-        // #5 cập nhật UI + nháy đỏ
+        // Step #5 — Cập nhật UI + hiệu ứng nháy đỏ
         UI_Manager.updateHPDisplay(Player_Stats.hp);
         UI_Manager.flashScreenRed();
-        // #6 + alt-flow
+        // Step #6 — Kiểm tra game over
         if (this.checkGameOver()) {
-            this.stopGameLoop();                    // #7
-            UI_Manager.showGameOverScreen();        // #8
+            this.stopGameLoop();               // Step #7 (cải tiến 4)
+            UI_Manager.showGameOverScreen();   // Step #8
         }
     },
 
@@ -461,8 +541,14 @@ const Game_Manager = {
         const enemiesSnapshot = this.enemies.slice();
         for (const enemy of enemiesSnapshot) {
             this.updateEnemyPosition(enemy);
+
+            // [CẢI TIẾN 5 — Nguyễn Lê Tiến Đạt | UC08]
+            // Cũ: if (checkBaseCollision) → handleEnemyReachedBase(enemy)
+            //   → Game_Manager chủ động xử lý enemy (không đúng vai trò)
+            // Mới: enemy.onReachBase() — enemy TỰ ủy quyền xử lý hậu quả,
+            //   đúng với sequence diagram "Enemy tự hủy và xóa khỏi mảng"
             if (this.checkBaseCollision(enemy)) {
-                this.handleEnemyReachedBase(enemy);
+                enemy.onReachBase();   // Enemy tự kích hoạt luồng step #3→#8
                 if (this.isGameOver) return;
             }
         }
