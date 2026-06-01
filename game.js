@@ -122,13 +122,37 @@ const Map_Grid = {
     /** Tải dữ liệu map từ config. */
     loadMap(mapId) {
         const map = GAME_CONFIG.MAPS[mapId];
-        if (!map) { console.error(`Không tìm thấy map: ${mapId}`); return; }
+
+        if (!map) {
+            console.error(`Không tìm thấy map: ${mapId}`);
+            return;
+        }
+
         this.mapId = mapId;
-        // Clone sâu để tránh sửa nhầm config gốc
         this.path = map.path.map(p => ({ ...p }));
         this.buildSpots = map.buildSpots.map(p => ({ ...p }));
         this.base = { ...map.base };
         this.occupiedSpots = [];
+    },
+
+    getSpotKey(x, y) {
+        return `${Math.round(x)}-${Math.round(y)}`;
+    },
+
+    findNearestBuildSpot(x, y) {
+        const snapDistance = GAME_CONFIG.GAMEPLAY.buildSpotSnapDistance;
+
+        return this.buildSpots.find(spot =>
+            Math.hypot(spot.x - x, spot.y - y) <= snapDistance
+        ) || null;
+    },
+
+    isSpotOccupied(spot) {
+        if (!spot) return false;
+
+        const spotKey = this.getSpotKey(spot.x, spot.y);
+
+        return this.occupiedSpots.some(item => item.key === spotKey);
     },
     /**
      * [UC05 - Sequence #5.4.4] checkValidPosition(x,y)
@@ -136,15 +160,42 @@ const Map_Grid = {
      * Tìm build spot gần nhất và kiểm tra spot đã bị chiếm chưa
      */
     checkValidPosition(x, y) {
-        const snap = GAME_CONFIG.GAMEPLAY.buildSpotSnapDistance;
-        const spot = this.buildSpots.find(s => Math.hypot(s.x - x, s.y - y) < snap);
-        if (!spot) return { valid: false, spot: null };
-        const isOccupied = this.occupiedSpots.some(s => s.x === spot.x && s.y === spot.y);
-        return { valid: !isOccupied, spot };
+        const spot = this.findNearestBuildSpot(x, y);
+
+        if (!spot) {
+            return {
+                valid: false,
+                spot: null,
+                reason: "Chỉ được xây tháp tại ô xây dựng"
+            };
+        }
+
+        if (this.isSpotOccupied(spot)) {
+            return {
+                valid: false,
+                spot,
+                reason: "Vị trí này đã có tháp"
+            };
+        }
+
+        return {
+            valid: true,
+            spot,
+            reason: ""
+        };
     },
-    markOccupied(x, y) { this.occupiedSpots.push({ x, y }); },
+    markOccupied(x, y){
+        const key = this.getSpotKey(x, y);
+
+        if (!this.occupiedSpots.some(item => item.key === key)){
+            this.occupiedSpots.push({x, y, key});
+        }
+    },
     freeSpot(x, y) {
-        this.occupiedSpots = this.occupiedSpots.filter(s => s.x !== x || s.y !== y);
+        const key = this.getSpotKey(x, y);
+        this.occupiedSpots = this.occupiedSpots.filter(item =>
+            item.key !== key
+        );
     }
 };
 
@@ -358,16 +409,22 @@ const Game_Manager = {
      * Sau đó tạo tower mới và cập nhật giao diện
      */
     requestBuildTower(x, y, towerType) {
+        const towerConfig = GAME_CONFIG.TOWERS[towerType];
+
+        if (!towerConfig) {
+            UI_Manager.showError("Loại tháp không tồn tại", "#e74c3c");
+            return false;
+        }
         const positionCheck = Map_Grid.checkValidPosition(x, y);
         /**
          * [UC05 - Alternative Flow A1]
          * Nếu vị trí không hợp lệ thì hiển thị lỗi
          */
         if (!positionCheck.valid) {
-            UI_Manager.showError("Vị trí không hợp lệ", "#e74c3c");
-            return;
+            UI_Manager.showError(positionCheck.reason, "#e74c3c");
+            return false;
         }
-        const cost = GAME_CONFIG.TOWERS[towerType].levels[0].cost;
+        const cost = towerConfig.levels[0].cost;
         /**
          * [UC05 - Sequence #5.4.5] checkMoney(cost)
          * Kiểm tra người chơi có đủ tiền xây tower hay không
@@ -378,8 +435,10 @@ const Game_Manager = {
              * Không đủ tiền để xây tower
              */
             UI_Manager.showError("Không đủ tiền", "#f1c40f");
-            return;
+            return false;
         }
+        const { x: spotX, y: spotY } = positionCheck.spot;
+        const tower = new Tower(spotX, spotY, towerType);
         /**
          * [UC05 - Sequence #5.4.6] deductMoney(cost)
          * Trừ số vàng tương ứng giá xây tower
@@ -389,18 +448,21 @@ const Game_Manager = {
          * [UC05 - Sequence #5.4.7] create Tower
          * Tạo đối tượng tower mới tại build spot hợp lệ
          */
-        this.towers.push(new Tower(positionCheck.spot.x, positionCheck.spot.y, towerType));
+        this.towers.push(tower);
         /**
          * [UC05 - Sequence #5.4.8] markOccupied(x,y)
          * Đánh dấu build spot đã được sử dụng
          */
-        Map_Grid.markOccupied(positionCheck.spot.x, positionCheck.spot.y);
+        Map_Grid.markOccupied(spotX, spotY);
         /**
          * [UC05 - Sequence #5.4.9] updateUI()
          * Cập nhật lại giao diện sau khi xây tower
          */
+        UI_Manager.showError(`Đã xây ${towerConfig.name}`, "#2ecc71");
         UI_Manager.updateUI();
         UI_Manager.clearSelected();
+
+        return true;
     },
 
     upgradeTower(tower) {
@@ -589,6 +651,7 @@ const UI_Manager = {
     canvas: null, ctx: null,
     selectedTowerSlot: null,
     interactTower: null,
+    hoverBuildSpot: null,
     errorTimer: null,
     flashTimer: null,
 
@@ -603,6 +666,7 @@ const UI_Manager = {
         this._bindGameControls();
         this._bindTowerSlots();
         this._bindCanvasClick();
+        this._bindCanvasHover();
         this._bindTowerMenu();
         this._bindGameOverModal();
 
@@ -652,19 +716,41 @@ const UI_Manager = {
         document.querySelectorAll('.slot.active').forEach(slot => {
             slot.onclick = () => {
                 // BUG FIX: Không cho chọn trụ khi đang pause, game over, hoặc victory
-                if (Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) return;
+                if (Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
+                    return;
+                }
+                const towerType = slot.dataset.type;
+                const towerConfig = GAME_CONFIG.TOWERS[towerType];
+
+                if (!towerConfig) {
+                    UI_Manager.showError("Loại tháp không hợp lệ", "#e74c3c");
+                    return;
+                }
+
+                const buildCost = towerConfig.levels[0].cost;
+
+                if (!Player_Stats.checkMoney(buildCost)) {
+                    UI_Manager.showError("Không đủ vàng để chọn tháp", "#f1c40f");
+                    return;
+                }
 
                 this.hideTowerMenu();
+
                 if (slot.classList.contains('selected')) {
                     this.clearSelected();
-                } else {
-                    this.clearSelected();
-                    slot.classList.add('selected');
-                    this.selectedTowerSlot = {
-                        type: slot.dataset.type,
-                        cost: parseInt(slot.dataset.cost)
-                    };
+                    return;
                 }
+
+                this.clearSelected();
+
+                slot.classList.add('selected');
+                this.canvas.classList.add('build-mode');
+
+                this.selectedTowerSlot = {
+                    type: towerType,
+                    cost: buildCost,
+                    name: towerConfig.name
+                };
             };
         });
     },
@@ -677,41 +763,88 @@ const UI_Manager = {
     _bindCanvasClick() {
         this.canvas.onclick = (e) => {
             // BUG FIX: Block tất cả canvas interaction khi pause, game over, hoặc victory
-            if (Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) return;
+                if (Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
+                    return;
+                }
 
-            const rect = this.canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
+                const { clickX, clickY } = this.getCanvasPoint(e);
+                const clickedTower = this.findTowerAt(clickX, clickY);
 
-            const hitRadius = GAME_CONFIG.GAMEPLAY.towerHitRadius;
-            const clickedTower = Game_Manager.towers.find(t =>
-                Math.hypot(t.x - clickX, t.y - clickY) < hitRadius);
+                if (clickedTower) {
+                    this.clearSelected();
+                    this.interactTower = clickedTower;
+                    this.showTowerMenu(clickedTower);
+                    return;
+                }
 
-            if (clickedTower) {
-                this.clearSelected();
-                this.interactTower = clickedTower;
-                this.showTowerMenu(clickedTower);
+                this.hideTowerMenu();
+
+                if (!this.selectedTowerSlot) {
+                    const positionCheck = Map_Grid.checkValidPosition(clickX, clickY);
+
+                    if (positionCheck.spot) {
+                        this.showError("Hãy chọn loại tháp trước", "#f1c40f");
+                    }
+
+                    return;
+                }
+
+                Game_Manager.requestBuildTower(
+                    clickX,
+                    clickY,
+                    this.selectedTowerSlot.type
+                );
+            };
+    },
+    _bindCanvasHover() {
+        this.canvas.onmousemove = (e) => {
+            if (!this.selectedTowerSlot || Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
+                this.hoverBuildSpot = null;
                 return;
             }
-            this.hideTowerMenu();
-            if (this.selectedTowerSlot) {
-                Game_Manager.requestBuildTower(clickX, clickY, this.selectedTowerSlot.type);
-            }
+
+            const { clickX, clickY } = this.getCanvasPoint(e);
+            const positionCheck = Map_Grid.checkValidPosition(clickX, clickY);
+
+            this.hoverBuildSpot = {
+                spot: positionCheck.spot,
+                valid: positionCheck.valid
+            };
         };
+
+        this.canvas.onmouseleave = () => {
+            this.hoverBuildSpot = null;
+        };
+    },
+    getCanvasPoint(e) {
+        const rect = this.canvas.getBoundingClientRect();
+
+        return {
+            clickX: e.clientX - rect.left,
+            clickY: e.clientY - rect.top
+        };
+    },
+
+    findTowerAt(x, y) {
+        const hitRadius = GAME_CONFIG.GAMEPLAY.towerHitRadius;
+
+        return Game_Manager.towers.find(tower =>
+            Math.hypot(tower.x - x, tower.y - y) <= hitRadius
+        ) || null;
     },
     _bindTowerMenu() {
-        document.getElementById('close-menu-btn').onclick = () => this.hideTowerMenu();
-        document.getElementById('sell-btn').onclick = () => {
-            if (this.interactTower) Game_Manager.sellTower(this.interactTower);
-            this.hideTowerMenu();
-        };
-        document.getElementById('upgrade-btn').onclick = () => {
-            if (this.interactTower) {
-                Game_Manager.upgradeTower(this.interactTower);
-                if (this.interactTower) this.showTowerMenu(this.interactTower);
-            }
-        };
-    },
+            document.getElementById('close-menu-btn').onclick = () => this.hideTowerMenu();
+            document.getElementById('sell-btn').onclick = () => {
+                if (this.interactTower) Game_Manager.sellTower(this.interactTower);
+                this.hideTowerMenu();
+            };
+            document.getElementById('upgrade-btn').onclick = () => {
+                if (this.interactTower) {
+                    Game_Manager.upgradeTower(this.interactTower);
+                    if (this.interactTower) this.showTowerMenu(this.interactTower);
+                }
+            };
+        },
     _bindGameOverModal() {
         document.getElementById('go-retry-btn').onclick = () => this.restartLevel();
         document.getElementById('go-home-btn').onclick = () => this.backToMainMenu();
@@ -780,7 +913,15 @@ const UI_Manager = {
 
     clearSelected() {
         this.selectedTowerSlot = null;
-        document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+        this.hoverBuildSpot = null;
+
+        document.querySelectorAll('.slot').forEach(slot =>
+            slot.classList.remove('selected')
+        );
+
+        if (this.canvas) {
+            this.canvas.classList.remove('build-mode');
+        }
     },
     showTowerMenu(tower) {
         const menu = document.getElementById('tower-menu');
@@ -866,7 +1007,16 @@ const UI_Manager = {
         document.getElementById('gold-val').innerText = Math.floor(Player_Stats.money);
         document.getElementById('wave-val').innerText =
             `${Player_Stats.wave}/${Player_Stats.maxWaves}`;
+        document.querySelectorAll('.slot.active').forEach(slot => {
+            const towerConfig = GAME_CONFIG.TOWERS[slot.dataset.type];
 
+            if (!towerConfig) return;
+
+            const buildCost = towerConfig.levels[0].cost;
+
+            slot.querySelector('.cost').innerText = `${buildCost}g`;
+            slot.classList.toggle('disabled', !Player_Stats.checkMoney(buildCost));
+        });
         // Cập nhật trạng thái nút Speed (Mờ khi đang ở wave 1, Sáng ngay khi xong wave 1)
         const speedBtn = document.getElementById('speed-btn');
         if (speedBtn) {
@@ -924,39 +1074,89 @@ const UI_Manager = {
         }
 
         // Build spots
-        Map_Grid.buildSpots.forEach(s => {
-            const occupied = Map_Grid.occupiedSpots.some(o => o.x === s.x && o.y === s.y);
-            if (!occupied) {
-                ctx.fillStyle = 'rgba(0,0,0,0.3)';
-                ctx.fillRect(s.x - 25, s.y - 25, 50, 50);
-                ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(s.x - 25, s.y - 25, 50, 50);
-            }
+        Map_Grid.buildSpots.forEach(spot => {
+            if (Map_Grid.isSpotOccupied(spot)) return;
+
+            const isHovered = this.hoverBuildSpot?.spot === spot;
+            const isValidHover = isHovered && this.hoverBuildSpot.valid;
+            const isInvalidHover = isHovered && !this.hoverBuildSpot.valid;
+
+            ctx.save();
+
+            ctx.fillStyle = isValidHover
+                ? 'rgba(46, 204, 113, 0.35)'
+                : isInvalidHover
+                    ? 'rgba(231, 76, 60, 0.35)'
+                    : 'rgba(255, 255, 255, 0.14)';
+
+            ctx.strokeStyle = isValidHover ? '#2ecc71' : '#f1c40f';
+            ctx.lineWidth = isHovered ? 4 : 2;
+            ctx.shadowBlur = isHovered ? 18 : 8;
+            ctx.shadowColor = isValidHover ? '#2ecc71' : '#f1c40f';
+
+            ctx.beginPath();
+            ctx.arc(spot.x, spot.y, 25, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = 'bold 24px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('+', spot.x, spot.y);
+
+            ctx.restore();
         });
 
         // Towers
-        Game_Manager.towers.forEach(t => {
-            ctx.fillStyle = 'rgba(0,0,0,0.4)';
-            ctx.beginPath(); ctx.arc(t.x + 2, t.y + 5, 25, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = t.color;
-            ctx.beginPath(); ctx.arc(t.x, t.y, 25, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.stroke();
-            ctx.font = '22px Arial'; ctx.fillText(t.icon, t.x - 11, t.y + 8);
+        Game_Manager.towers.forEach(tower => {
+            ctx.save();
 
-            // Badge cấp độ
-            if (t.level > 1) {
-                ctx.fillStyle = '#f1c40f';
-                ctx.beginPath(); ctx.arc(t.x + 18, t.y - 18, 9, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = '#000'; ctx.font = 'bold 12px Arial';
-                ctx.fillText(t.level, t.x + 14, t.y - 14);
+            if (this.interactTower === tower) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+                ctx.beginPath();
+                ctx.arc(tower.x, tower.y, tower.range, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
             }
 
-            if (this.interactTower === t) {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-                ctx.beginPath(); ctx.arc(t.x, t.y, t.range, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.stroke();
-            }
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+            ctx.beginPath();
+            ctx.ellipse(tower.x + 3, tower.y + 9, 27, 12, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = tower.color;
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = this.interactTower === tower ? 20 : 8;
+            ctx.shadowColor = tower.color;
+
+            ctx.beginPath();
+            ctx.arc(tower.x, tower.y, 24, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '22px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(tower.icon, tower.x, tower.y + 1);
+
+            ctx.fillStyle = '#f1c40f';
+            ctx.beginPath();
+            ctx.arc(tower.x + 18, tower.y - 18, 9, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#1f2937';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(tower.level, tower.x + 18, tower.y - 18);
+
+            ctx.restore();
         });
 
         // Enemies
