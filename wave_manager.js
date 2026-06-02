@@ -39,6 +39,8 @@ const Wave_Manager = {
      * ---------------------------------------------------------------- */
     COUNTDOWN_INTERVAL: 700,       // [09.1.0] ms mỗi số 3-2-1
     COUNTDOWN_PULSE_MS: 150,       // Khớp với transition của #wave-countdown
+    BANNER_DURATION: 1500,         // [09.1.1] ms hiển thị banner "WAVE X"
+    BANNER_FADE_MS: 400,           // Khớp với keyframes waSlideOut
 
     /* ------------------------------------------------------------------
      * STATE — Đếm ngược & spawn cơ bản
@@ -87,8 +89,9 @@ const Wave_Manager = {
         this.groupSpawnedCount = 0;
         this.currentBoss = null;
 
-        // [UC09 - 09.2.2] Ẩn UI countdown khi reset (retry / về menu)
+        // [UC09 - 09.2.2] Ẩn UI countdown + banner khi reset (retry / về menu)
         this._hideCountdown();
+        this._hideBanner();
     },
 
     /* ==================================================================
@@ -113,7 +116,12 @@ const Wave_Manager = {
             return;
         }
 
-        // [Commit 07] Logic spawn cơ bản (banner/groups/boss sẽ thêm sau).
+        // [UC09 - 09.1.1] Banner tick song song với spawn — không block.
+        if (this.bannerTimer > 0) {
+            this._updateBanner(dt);
+        }
+
+        // [Commit 07] Logic spawn cơ bản (groups/boss-bar sẽ thêm sau).
         this._updateBasicSpawn(dt);
     },
 
@@ -159,7 +167,10 @@ const Wave_Manager = {
         this.enemiesSpawnedThisWave = 0;
         this.spawnTimer = 0;
         // [TODO Commit 10] Reset groupIndex, groupSpawnedCount
-        // [TODO Commit 09] Trigger banner + boss warning
+
+        // [UC09 - 09.1.1 / 09.1.7] Trigger banner cho wave mới (boss → đỏ)
+        const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
+        this._showWaveBanner(waveData);
     },
 
     /**
@@ -247,6 +258,71 @@ const Wave_Manager = {
     _hideCountdown() {
         const el = document.getElementById('wave-countdown');
         if (el) el.classList.add('hidden');
+    },
+
+    /* ==================================================================
+     * BANNER — [UC09 - 09.1.1 / 09.1.7] WAVE X & BOSS APPROACHING
+     * ================================================================ */
+
+    /**
+     * Hiển thị banner wave mới. Tự chọn style thường (vàng) hoặc
+     * boss (đỏ + pulse) dựa vào _isBossWave().
+     */
+    _showWaveBanner(waveData) {
+        const el = document.getElementById('wave-announcement');
+        if (!el) return;
+
+        const isBoss = this._isBossWave(waveData);
+        const cur = Player_Stats.wave;
+        const max = Player_Stats.maxWaves;
+
+        // Inject HTML theo cấu trúc CSS đã định nghĩa sẵn
+        if (isBoss) {
+            el.innerHTML =
+                '<span class="wa-warn-icon">⚠️</span>' +
+                '<span class="wa-boss-label">BOSS APPROACHING</span>' +
+                '<span class="wa-boss-sub">Wave ' + cur + ' / ' + max + '</span>';
+        } else {
+            el.innerHTML =
+                '<span class="wa-label">WAVE</span>' +
+                '<span class="wa-number">' + cur + '</span>' +
+                '<span class="wa-total">/ ' + max + '</span>';
+        }
+
+        // Reset class trước khi áp dụng class mới
+        el.classList.remove('hidden', 'wa-in', 'wa-out', 'wa-normal', 'wa-boss');
+        // Force reflow để retrigger animation
+        void el.offsetWidth;
+        el.classList.add(isBoss ? 'wa-boss' : 'wa-normal', 'wa-in');
+
+        this.bannerTimer = this.BANNER_DURATION;
+    },
+
+    /**
+     * Tick banner — hết thời gian hiển thị thì kích slide-out + ẩn.
+     */
+    _updateBanner(dt) {
+        this.bannerTimer -= dt;
+        if (this.bannerTimer > 0) return;
+
+        const el = document.getElementById('wave-announcement');
+        if (!el) return;
+
+        // Kích slide-out (giữ wa-normal/wa-boss để background không nhảy)
+        el.classList.remove('wa-in');
+        el.classList.add('wa-out');
+        setTimeout(() => {
+            if (!el) return;
+            el.classList.add('hidden');
+            el.classList.remove('wa-out', 'wa-normal', 'wa-boss');
+        }, this.BANNER_FADE_MS);
+    },
+
+    _hideBanner() {
+        const el = document.getElementById('wave-announcement');
+        if (!el) return;
+        el.classList.add('hidden');
+        el.classList.remove('wa-in', 'wa-out', 'wa-normal', 'wa-boss');
     },
 
     /* ==================================================================

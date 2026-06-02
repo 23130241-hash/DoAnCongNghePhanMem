@@ -389,19 +389,20 @@ canvas { display: block; }
     transform: translate(-50%, -50%) scale(1.3);
 }
 
-/* [09.1.1] Wave Announcement Banner */
+/* [09.1.1] Wave Announcement Banner — nhỏ gọn, đặt sát top-bar
+   để không che build spots ở giữa canvas */
 .wave-announcement {
     position: absolute;
-    top: 38%;
+    top: 70px;
     left: 50%;
     transform: translateX(-50%) translateY(-20px);
-    padding: 18px 48px;
-    border-radius: 12px;
+    padding: 6px 18px;
+    border-radius: 8px;
     text-align: center;
     z-index: 28;
     pointer-events: none;
     opacity: 0;
-    min-width: 280px;
+    white-space: nowrap;
 }
 
 /* Slide-in */
@@ -428,10 +429,13 @@ canvas { display: block; }
     border: 3px solid #f1c40f;
     box-shadow: 0 0 24px #f1c40f88;
 }
-.wa-label  { display: block; font-size: 14px; color: #bdc3c7; letter-spacing: 4px; }
-.wa-number { display: block; font-size: 72px; font-weight: bold; color: #f1c40f;
-    text-shadow: 3px 3px 0 #000; line-height: 1; font-family: 'Arial Black'; }
-.wa-total  { display: block; font-size: 20px; color: #ecf0f1; margin-top: 2px; }
+/* Inline layout cho banner thường — gọn 1 dòng */
+.wa-label  { display: inline; font-size: 13px; color: #bdc3c7; letter-spacing: 2px;
+    vertical-align: middle; margin-right: 8px; }
+.wa-number { display: inline; font-size: 24px; font-weight: bold; color: #f1c40f;
+    text-shadow: 2px 2px 0 #000; font-family: 'Arial Black'; vertical-align: middle; }
+.wa-total  { display: inline; font-size: 14px; color: #ecf0f1;
+    vertical-align: middle; margin-left: 4px; }
 
 /* Boss wave — đỏ */
 .wave-announcement.wa-boss {
@@ -445,10 +449,13 @@ canvas { display: block; }
     from { box-shadow: 0 0 20px #e74c3c; }
     to   { box-shadow: 0 0 50px #e74c3c; }
 }
-.wa-warn-icon  { display: block; font-size: 48px; line-height: 1; }
-.wa-boss-label { display: block; font-size: 28px; font-weight: bold; color: #f1c40f;
-    letter-spacing: 3px; font-family: 'Arial Black'; }
-.wa-boss-sub   { display: block; font-size: 22px; color: #ecf0f1; margin-top: 4px; }
+/* Inline layout cho boss banner — gọn 1 dòng nhưng vẫn nổi bật */
+.wa-warn-icon  { display: inline; font-size: 20px; vertical-align: middle;
+    margin-right: 6px; }
+.wa-boss-label { display: inline; font-size: 18px; font-weight: bold; color: #f1c40f;
+    letter-spacing: 2px; font-family: 'Arial Black'; vertical-align: middle; }
+.wa-boss-sub   { display: inline; font-size: 13px; color: #ecf0f1;
+    vertical-align: middle; margin-left: 8px; }
 
 /* [09.1.8] Boss HP Bar */
 #boss-hpbar {
