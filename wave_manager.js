@@ -35,6 +35,12 @@
 const Wave_Manager = {
 
     /* ------------------------------------------------------------------
+     * CONSTANTS
+     * ---------------------------------------------------------------- */
+    COUNTDOWN_INTERVAL: 700,       // [09.1.0] ms mỗi số 3-2-1
+    COUNTDOWN_PULSE_MS: 150,       // Khớp với transition của #wave-countdown
+
+    /* ------------------------------------------------------------------
      * STATE — Đếm ngược & spawn cơ bản
      * ---------------------------------------------------------------- */
     waveTimer: 0,                  // Đếm ngược (ms) tới wave kế tiếp
@@ -80,6 +86,9 @@ const Wave_Manager = {
         this.groupIndex = 0;
         this.groupSpawnedCount = 0;
         this.currentBoss = null;
+
+        // [UC09 - 09.2.2] Ẩn UI countdown khi reset (retry / về menu)
+        this._hideCountdown();
     },
 
     /* ==================================================================
@@ -97,9 +106,14 @@ const Wave_Manager = {
         if (!Game_Manager.isPlaying) return;
         if (Player_Stats.wave > Player_Stats.maxWaves) return;
 
-        // [Commit 07 - skeleton] Hiện chỉ chạy logic spawn cơ bản.
-        // Các bước countdown/banner/boss-warning sẽ chèn vào pipeline
-        // này ở commit 08-09.
+        // [UC09 - 09.1.0] Nếu đang đếm ngược 3-2-1 → chỉ tick countdown,
+        // tạm dừng spawn cho tới khi đếm xong.
+        if (this.countdownTimer > 0) {
+            this._updateCountdown(dt);
+            return;
+        }
+
+        // [Commit 07] Logic spawn cơ bản (banner/groups/boss sẽ thêm sau).
         this._updateBasicSpawn(dt);
     },
 
@@ -108,11 +122,12 @@ const Wave_Manager = {
      * ================================================================ */
 
     _updateBasicSpawn(dt) {
-        // Nếu đang chờ giữa hai wave → đếm ngược
+        // Nếu đang chờ giữa hai wave → đếm ngược tới countdown 3-2-1
         if (this.waveTimer > 0) {
             this.waveTimer -= dt;
             if (this.waveTimer <= 0) {
-                this._startNextWave();
+                // [UC09 - 09.1.0] Kích hoạt countdown trước khi spawn wave mới
+                this._beginCountdown();
             }
             return;
         }
@@ -173,6 +188,65 @@ const Wave_Manager = {
         this.enemiesSpawnedThisWave++;
 
         // [TODO Commit 11] Nếu là boss → gán this.currentBoss = enemy
+    },
+
+    /* ==================================================================
+     * COUNTDOWN 3-2-1 — [UC09 - 09.1.0]
+     * ================================================================ */
+
+    /**
+     * Bắt đầu chuỗi đếm ngược 3 → 2 → 1 trước khi vào wave mới.
+     * Gọi khi waveTimer về 0. Không countdown nếu đã hết wave.
+     */
+    _beginCountdown() {
+        if (Player_Stats.wave >= Player_Stats.maxWaves) return;
+        this.countdownNumber = 3;
+        this.countdownTimer = this.COUNTDOWN_INTERVAL;
+        this._showCountdownNumber(this.countdownNumber);
+    },
+
+    /**
+     * Tick countdown — giảm số khi hết interval. Khi đếm xuống 0
+     * thì ẩn UI và bắt đầu wave tiếp theo.
+     */
+    _updateCountdown(dt) {
+        this.countdownTimer -= dt;
+        if (this.countdownTimer > 0) return;
+
+        this.countdownNumber--;
+        if (this.countdownNumber <= 0) {
+            // Đếm xong → bắt đầu wave
+            this._hideCountdown();
+            this._startNextWave();
+        } else {
+            // Vẫn còn số → hiển thị số kế tiếp
+            this._showCountdownNumber(this.countdownNumber);
+            this.countdownTimer = this.COUNTDOWN_INTERVAL;
+        }
+    },
+
+    /**
+     * Hiển thị 1 số countdown kèm pulse animation.
+     * Trigger animation bằng cách remove+reflow+add class.
+     */
+    _showCountdownNumber(n) {
+        const el = document.getElementById('wave-countdown');
+        if (!el) return;
+        el.textContent = String(n);
+        el.classList.remove('hidden');
+
+        // Retrigger pulse animation
+        el.classList.remove('cd-pulse');
+        void el.offsetWidth;          // force reflow
+        el.classList.add('cd-pulse');
+        setTimeout(() => {
+            if (el) el.classList.remove('cd-pulse');
+        }, this.COUNTDOWN_PULSE_MS);
+    },
+
+    _hideCountdown() {
+        const el = document.getElementById('wave-countdown');
+        if (el) el.classList.add('hidden');
     },
 
     /* ==================================================================
