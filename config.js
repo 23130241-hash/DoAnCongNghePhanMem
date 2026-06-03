@@ -103,7 +103,7 @@ const GAME_CONFIG = {
          * isBoss: true  → Wave_Manager sẽ hiển thị cảnh báo đặc biệt
          *                  và render health bar riêng trên giao diện.
          * Spawn bởi wave_manager.js khi gặp wave có boss type.       */
-        boss:       { name: "Boss",   hp: 400, speed: 0.4, reward: 100, size: 30, damage: 5, color: '#8b0000', icon: '👹', isBoss: true }
+        boss:       { name: "Boss",   hp: 1000, speed: 0.5, reward: 100, size: 30, damage: 5, color: '#8b0000', icon: '👹', isBoss: true }
     },
 
     /* -----------------------------------------------------------------
@@ -180,9 +180,7 @@ const GAME_CONFIG = {
          * spawn tuần tự từng group trong cùng một wave.
          * Wave cuối là boss wave — sẽ trigger cảnh báo đặc biệt.  */
         3: {
-            // [UC09 - WIP] Ẩn khỏi campaign UI cho tới khi wave_manager.js
-            // hỗ trợ format groups (dự kiến COMMIT 10 — 16/06).
-            wip: true,
+            // [UC09 - 09.1.3] Wave_Manager đã hỗ trợ format groups → mở khóa.
             name: "Pháo đài bóng tối",
             mapId: "map03",
             startMoney: 400,

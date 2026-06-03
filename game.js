@@ -386,8 +386,9 @@ const Game_Manager = {
         if (Player_Stats.wave > 1) return true;
         if (Player_Stats.wave === 1) {
             const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[0];
-            // [UC09] enemiesSpawnedThisWave đã chuyển sang Wave_Manager
-            return Wave_Manager.enemiesSpawnedThisWave >= waveData.count
+            // [UC09 - 09.1.3] dùng getWaveTotalCount để hỗ trợ format groups
+            const total = Wave_Manager.getWaveTotalCount(waveData);
+            return Wave_Manager.enemiesSpawnedThisWave >= total
                 && this.enemies.length === 0;
         }
         return false;
@@ -713,9 +714,11 @@ const Game_Manager = {
 
         // ---- Victory check ----
         const currentWaveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
+        // [UC09 - 09.1.3] Hỗ trợ format groups
+        const waveTotalCount = Wave_Manager.getWaveTotalCount(currentWaveData);
         if (Player_Stats.wave === Player_Stats.maxWaves &&
             currentWaveData &&
-            Wave_Manager.enemiesSpawnedThisWave >= (currentWaveData.count || 0) &&
+            Wave_Manager.enemiesSpawnedThisWave >= waveTotalCount &&
             this.enemies.length === 0) {
             this.isVictory = true;
             this.stopGameLoop();

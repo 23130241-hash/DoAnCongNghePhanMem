@@ -143,10 +143,19 @@ const Wave_Manager = {
         const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
         if (!waveData) return;
 
-        // [TODO Commit 10] Xử lý format groups ở đây
-        const count = waveData.count || 0;
+        // [UC09 - 09.1.3] Route theo format wave
+        if (Array.isArray(waveData.groups)) {
+            this._updateGroupSpawn(dt, waveData);
+        } else {
+            this._updateSimpleSpawn(dt, waveData);
+        }
+    },
 
-        // Đang trong quá trình spawn quái của wave hiện tại
+    /**
+     * [UC09 - 09.1.3a] Spawn cho format CŨ: { enemyType, count, interval }
+     */
+    _updateSimpleSpawn(dt, waveData) {
+        const count = waveData.count || 0;
         if (this.enemiesSpawnedThisWave < count) {
             this.spawnTimer -= dt;
             if (this.spawnTimer <= 0) {
@@ -160,13 +169,49 @@ const Wave_Manager = {
         }
     },
 
+    /**
+     * [UC09 - 09.1.3b] Spawn cho format MỚI: { groups: [...] }
+     * Spawn tuần tự từng group; quái trong cùng group spawn theo interval
+     * riêng của group đó. Khi xong group hiện tại → chuyển group kế tiếp
+     * và spawn ngay quái đầu (spawnTimer = 0).
+     */
+    _updateGroupSpawn(dt, waveData) {
+        // Đã spawn hết tất cả group → đợi quái chết rồi chuyển wave
+        if (this.groupIndex >= waveData.groups.length) {
+            if (Game_Manager.enemies.length === 0 &&
+                Player_Stats.wave < Player_Stats.maxWaves) {
+                this.waveTimer = GAME_CONFIG.LEVELS[currentLevel].waveDelay || 3000;
+            }
+            return;
+        }
+
+        const group = waveData.groups[this.groupIndex];
+
+        if (this.groupSpawnedCount < (group.count || 0)) {
+            this.spawnTimer -= dt;
+            if (this.spawnTimer <= 0) {
+                // _spawnEnemy đã tự tăng enemiesSpawnedThisWave bên trong
+                this._spawnEnemy(group.enemyType);
+                this.groupSpawnedCount++;
+                this.spawnTimer = group.interval;
+            }
+        } else {
+            // Hết group hiện tại → chuyển sang group kế tiếp
+            this.groupIndex++;
+            this.groupSpawnedCount = 0;
+            this.spawnTimer = 0;     // spawn quái đầu của group mới ngay lập tức
+        }
+    },
+
     _startNextWave() {
         if (Player_Stats.wave >= Player_Stats.maxWaves) return;
         Player_Stats.wave++;
         UI_Manager.updateUI();
         this.enemiesSpawnedThisWave = 0;
         this.spawnTimer = 0;
-        // [TODO Commit 10] Reset groupIndex, groupSpawnedCount
+        // [UC09 - 09.1.3] Reset con trỏ group cho wave mới
+        this.groupIndex = 0;
+        this.groupSpawnedCount = 0;
 
         // [UC09 - 09.1.1 / 09.1.7] Trigger banner cho wave mới (boss → đỏ)
         const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
@@ -328,6 +373,19 @@ const Wave_Manager = {
     /* ==================================================================
      * HELPERS — sẽ được dùng ở commit sau
      * ================================================================ */
+
+    /**
+     * [UC09 - 09.1.3] Tổng số quái phải spawn cho 1 wave — bất kể format.
+     * Format cũ: trả về waveData.count.
+     * Format groups: cộng dồn count của từng group.
+     */
+    getWaveTotalCount(waveData) {
+        if (!waveData) return 0;
+        if (Array.isArray(waveData.groups)) {
+            return waveData.groups.reduce((s, g) => s + (g.count || 0), 0);
+        }
+        return waveData.count || 0;
+    },
 
     /**
      * [Commit 09] Kiểm tra wave hiện tại có boss để hiện cảnh báo đỏ.
