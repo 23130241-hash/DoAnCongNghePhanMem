@@ -95,7 +95,7 @@ class Enemy {
     }
 
     /* ------------------------------------------------------------------
-     * [CẢI TIẾN — Nguyễn Lê Tiến Đạt | UC08 — step #3]
+     * [CẢI TIẾN — Nguyễn Lê Tiến Đạt | UC11 — step #3]
      * ------------------------------------------------------------------
      * Vấn đề gốc:
      *   _tickLogic() gọi thẳng Game_Manager.handleEnemyReachedBase(enemy)
@@ -575,7 +575,7 @@ const Game_Manager = {
     },
 
     /* =================================================================
-     * [CẢI TIẾN — Nguyễn Lê Tiến Đạt | UC08 — step #7]
+     * [CẢI TIẾN — Nguyễn Lê Tiến Đạt | UC11 — step #7]
      * =================================================================
      * Vấn đề gốc:
      *   stopGameLoop() cũ:
@@ -624,7 +624,7 @@ const Game_Manager = {
     },
 
     /* ------------------------------------------------------------------
-     * [CẢI TIẾN 5 — Nguyễn Lê Tiến Đạt | UC08]
+     * [CẢI TIẾN  — Nguyễn Lê Tiến Đạt | UC11]
      * ------------------------------------------------------------------
      * Hàm này KHÔNG còn được gọi trực tiếp từ _tickLogic().
      * Nó được kích hoạt qua enemy.onReachBase() — Enemy chủ động
@@ -676,7 +676,7 @@ const Game_Manager = {
             enemy.updateEffects(dt); 
             this.updateEnemyPosition(enemy);
 
-            // [CẢI TIẾN  — Nguyễn Lê Tiến Đạt | UC08]
+            // [CẢI TIẾN  — Nguyễn Lê Tiến Đạt | UC11]
             // Cũ: handleEnemyReachedBase(enemy) — Game_Manager chủ động xử lý
             //     vi phạm ngữ nghĩa: "Enemy tự hủy" nhưng lại do Game_Manager làm
             // Mới: enemy.onReachBase() — Enemy tự kích hoạt chuỗi xử lý,
