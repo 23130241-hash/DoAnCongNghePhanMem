@@ -89,9 +89,10 @@ const Wave_Manager = {
         this.groupSpawnedCount = 0;
         this.currentBoss = null;
 
-        // [UC09 - 09.2.2] Ẩn UI countdown + banner khi reset (retry / về menu)
+        // [UC09 - 09.2.2] Ẩn UI countdown + banner + boss bar khi reset
         this._hideCountdown();
         this._hideBanner();
+        this._hideBossBar();
     },
 
     /* ==================================================================
@@ -121,7 +122,12 @@ const Wave_Manager = {
             this._updateBanner(dt);
         }
 
-        // [Commit 07] Logic spawn cơ bản (groups/boss-bar sẽ thêm sau).
+        // [UC09 - 09.1.8] Boss HP bar tick — chạy độc lập với spawn pipeline
+        if (this.currentBoss) {
+            this._updateBossBar();
+        }
+
+        // [Commit 07] Logic spawn cơ bản.
         this._updateBasicSpawn(dt);
     },
 
@@ -243,7 +249,11 @@ const Wave_Manager = {
         Game_Manager.enemies.push(enemy);
         this.enemiesSpawnedThisWave++;
 
-        // [TODO Commit 11] Nếu là boss → gán this.currentBoss = enemy
+        // [UC09 - 09.1.8] Boss tracking — track ref + hiện HP bar overlay
+        if (enemy.isBoss) {
+            this.currentBoss = enemy;
+            this._showBossBar();
+        }
     },
 
     /* ==================================================================
@@ -368,6 +378,59 @@ const Wave_Manager = {
         if (!el) return;
         el.classList.add('hidden');
         el.classList.remove('wa-in', 'wa-out', 'wa-normal', 'wa-boss');
+    },
+
+    /* ==================================================================
+     * BOSS HP BAR — [UC09 - 09.1.8]
+     * ================================================================ */
+
+    /**
+     * Tick HP bar — gọi mỗi frame khi có boss đang sống. Tự clear ref
+     * và ẩn UI khi boss chết hoặc lọt căn cứ (đều xóa khỏi enemies).
+     */
+    _updateBossBar() {
+        const boss = this.currentBoss;
+        if (!boss) return;
+
+        // Boss không còn trên arena (chết hoặc lọt căn cứ) → ẩn bar
+        const stillOnField = Game_Manager.enemies.indexOf(boss) !== -1;
+        if (!stillOnField || boss.hp <= 0) {
+            this.currentBoss = null;
+            this._hideBossBar();
+            return;
+        }
+
+        const el = document.getElementById('boss-hpbar');
+        if (!el) return;
+
+        const txtEl  = el.querySelector('.boss-hp-text');
+        const fillEl = el.querySelector('.boss-hp-fill');
+
+        const hp = Math.max(0, Math.ceil(boss.hp));
+        const max = boss.maxHp || 1;
+        const pct = Math.max(0, Math.min(100, (hp / max) * 100));
+
+        if (txtEl) {
+            const label = (boss.type || 'BOSS').toUpperCase();
+            txtEl.textContent = `👹 ${label}  ${hp} / ${max}`;
+        }
+        if (fillEl) {
+            fillEl.style.width = pct + '%';
+            // Đổi màu khi máu thấp — thêm cảm giác kịch tính
+            if (pct <= 25)      fillEl.style.background = '#c0392b';
+            else if (pct <= 50) fillEl.style.background = '#e67e22';
+            else                fillEl.style.background = '#e74c3c';
+        }
+    },
+
+    _showBossBar() {
+        const el = document.getElementById('boss-hpbar');
+        if (el) el.classList.remove('hidden');
+    },
+
+    _hideBossBar() {
+        const el = document.getElementById('boss-hpbar');
+        if (el) el.classList.add('hidden');
     },
 
     /* ==================================================================
