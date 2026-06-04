@@ -89,15 +89,15 @@ describe('Wave_Manager._isBossWave', () => {
         expect(Wave_Manager._isBossWave({ enemyType: 'skeleton', count: 12 })).toBe(false);
     });
 
-    test('true cho wave có enemyType là boss', () => {
-        expect(Wave_Manager._isBossWave({ enemyType: 'boss', count: 1 })).toBe(true);
+    test('true cho wave có enemyType là boss1', () => {
+        expect(Wave_Manager._isBossWave({ enemyType: 'boss1', count: 1 })).toBe(true);
     });
 
-    test('true nếu một group bất kỳ chứa boss', () => {
+    test('true nếu một group bất kỳ chứa boss1', () => {
         const wave = {
             groups: [
                 { enemyType: 'creep', count: 5 },
-                { enemyType: 'boss', count: 1 },
+                { enemyType: 'boss1', count: 1 },
             ]
         };
         expect(Wave_Manager._isBossWave(wave)).toBe(true);
@@ -177,19 +177,32 @@ describe('GAME_CONFIG validation (config.js)', () => {
         expect(GAME_CONFIG.GAMEPLAY).toBeDefined();
     });
 
-    test('Mỗi map có path, buildSpots, base với cấu trúc hợp lệ', () => {
+    test('Mỗi map có paths, buildSpots, base với cấu trúc hợp lệ', () => {
         for (const [mapId, map] of Object.entries(GAME_CONFIG.MAPS)) {
-            expect(Array.isArray(map.path)).toBe(true);
-            expect(map.path.length).toBeGreaterThanOrEqual(2);
+            // [Commit 15] Format mới — paths là mảng các path
+            expect(Array.isArray(map.paths)).toBe(true);
+            expect(map.paths.length).toBeGreaterThanOrEqual(1);
+            // Mỗi path phải có ≥ 2 waypoint và mỗi waypoint có x, y
+            map.paths.forEach((path, pIdx) => {
+                expect(Array.isArray(path)).toBe(true);
+                expect(path.length).toBeGreaterThanOrEqual(2);
+                path.forEach(pt => {
+                    expect(typeof pt.x).toBe('number');
+                    expect(typeof pt.y).toBe('number');
+                });
+            });
             expect(Array.isArray(map.buildSpots)).toBe(true);
             expect(map.base).toBeDefined();
             expect(typeof map.base.x).toBe('number');
             expect(typeof map.base.y).toBe('number');
-            // Mỗi waypoint phải có x, y
-            map.path.forEach(pt => {
-                expect(typeof pt.x).toBe('number');
-                expect(typeof pt.y).toBe('number');
-            });
+        }
+    });
+
+    test('Map cũ không còn dùng property "path" (đã chuyển sang "paths")', () => {
+        for (const [mapId, map] of Object.entries(GAME_CONFIG.MAPS)) {
+            // Có thể tồn tại với value undefined (do destructure cũ), nhưng
+            // KHÔNG được là array — nếu vẫn là array thì chưa migrate
+            expect(Array.isArray(map.path)).toBe(false);
         }
     });
 
@@ -235,9 +248,11 @@ describe('GAME_CONFIG validation (config.js)', () => {
         expect(GAME_CONFIG.ENEMIES.skeleton.damage).toBe(2);
     });
 
-    test('Boss enemy có flag isBoss = true', () => {
-        expect(GAME_CONFIG.ENEMIES.boss).toBeDefined();
-        expect(GAME_CONFIG.ENEMIES.boss.isBoss).toBe(true);
+    test('Boss1 enemy có flag isBoss = true (đặt tên có hậu tố cho mở rộng boss2/3)', () => {
+        expect(GAME_CONFIG.ENEMIES.boss1).toBeDefined();
+        expect(GAME_CONFIG.ENEMIES.boss1.isBoss).toBe(true);
+        // Đảm bảo key cũ 'boss' đã bị rename, không còn tồn tại
+        expect(GAME_CONFIG.ENEMIES.boss).toBeUndefined();
     });
 
     test('Level 3 sử dụng map03 và có wave format groups', () => {
