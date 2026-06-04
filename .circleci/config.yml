@@ -1,77 +1,31 @@
-# =====================================================================
-# CircleCI configuration — Kingdom Defense (Tower Defense Offline)
-# ---------------------------------------------------------------------
-# Mỗi commit/push lên GitHub sẽ kích hoạt pipeline này.
-# Mục đích: chạy unit test (Jest) tự động để tránh code lỗi merge vào main.
-# =====================================================================
+# Use the latest 2.1 version of CircleCI pipeline process engine.
+# See: https://circleci.com/docs/reference/configuration-reference
 version: 2.1
 
-# Orbs là các thư viện tiện ích đóng gói sẵn — đỡ phải viết tay
-# `node` orb cung cấp các step như install-packages có cache thông minh
-orbs:
-    node: circleci/node@5.2.0
-
-# ---------------------------------------------------------------------
-# JOBS — Mỗi job là một chuỗi step chạy trên cùng một container
-# ---------------------------------------------------------------------
+# Define a job to be invoked later in a workflow.
+# See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#jobs-overview & https://circleci.com/docs/reference/configuration-reference/#jobs
 jobs:
-    # Job "test" — chạy Jest cho toàn bộ test suite
-    test:
-        docker:
-            # Image Node 20 LTS chính thức của CircleCI (đã có git, ssh, ...)
-            - image: cimg/node:20.11
-        resource_class: medium      # 2 vCPU, 4 GB RAM — đủ cho jest
+  say-hello:
+    # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
+    # See: https://circleci.com/docs/guides/execution-managed/executor-intro/ & https://circleci.com/docs/reference/configuration-reference/#executor-job
+    docker:
+      # Specify the version you desire here
+      # See: https://circleci.com/developer/images/image/cimg/base
+      - image: cimg/base:current
 
-        steps:
-            # 1) Kéo source code về workspace
-            - checkout
+    # Add steps to the job
+    # See: https://circleci.com/docs/guides/orchestrate/jobs-steps/#steps-overview & https://circleci.com/docs/reference/configuration-reference/#steps
+    steps:
+      # Checkout the code as the first step.
+      - checkout
+      - run:
+          name: "Say hello"
+          command: "echo Hello, World!"
 
-            # 2) Cài dependencies với cache. Cache key dựa trên package-lock.json
-            # → lần build sau có cùng package-lock thì restore cache, không re-install
-            - node/install-packages:
-                  pkg-manager: npm
-                  cache-version: v1
-
-            # 3) Chạy Jest. `--ci` đảm bảo không có watch mode, fail nếu snapshot mismatch
-            - run:
-                  name: Run Jest unit tests
-                  command: npm test
-
-            # 4) Lưu JUnit XML để CircleCI hiển thị summary test trên UI
-            - store_test_results:
-                  path: test-results
-
-            # 5) Lưu báo cáo full (logs, junit xml) như artifact để download khi cần
-            - store_artifacts:
-                  path: test-results
-                  destination: test-results
-
-    # Job "lint" — kiểm tra cú pháp JS (không cần cài ESLint riêng,
-    # dùng `node -c` để check syntax mọi file .js)
-    syntax-check:
-        docker:
-            - image: cimg/node:20.11
-        steps:
-            - checkout
-            - run:
-                  name: Check syntax of all JS files
-                  command: |
-                      for f in *.js; do
-                          echo "Checking $f"
-                          node -c "$f" || exit 1
-                      done
-
-# ---------------------------------------------------------------------
-# WORKFLOWS — Quy định khi nào chạy job nào
-# ---------------------------------------------------------------------
+# Orchestrate jobs using workflows
+# See: https://circleci.com/docs/guides/orchestrate/workflows/ & https://circleci.com/docs/reference/configuration-reference/#workflows
 workflows:
-    test-on-commit:
-        jobs:
-            # Cả 2 job chạy SONG SONG (independent) trên mỗi commit
-            - syntax-check
-            - test:
-                  # `requires` không bắt buộc — bỏ trống để chạy parallel với syntax-check
-                  filters:
-                      branches:
-                          # Chạy trên TẤT CẢ branch (main, dev, feature/*, PR...)
-                          only: /.*/
+  say-hello-workflow: # This is the name of the workflow, feel free to change it to better match your workflow.
+    # Inside the workflow, you define the jobs you want to run.
+    jobs:
+      - say-hello
