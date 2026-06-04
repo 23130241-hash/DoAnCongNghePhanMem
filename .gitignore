@@ -4,3 +4,7 @@ dist/
 .DS_Store
 /.idea/
 /.vscode/
+
+# Jest / CircleCI test outputs
+test-results/
+coverage/
