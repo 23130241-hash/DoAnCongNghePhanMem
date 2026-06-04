@@ -1,3 +1,4 @@
+/* eslint-env node, jest */
 /**
  * Unit tests — Wave_Manager (UC09 — Sinh kẻ thù)
  *
@@ -8,6 +9,10 @@
  *   - Load wave_manager.js → expose Wave_Manager global.
  *   - Test 3 hàm pure dễ kiểm soát nhất: getWaveTotalCount, _isBossWave,
  *     và validate cấu hình config.js (đảm bảo data hợp lệ).
+ *
+ * Note: Dòng `eslint-env` trên cùng báo cho IntelliJ + ESLint biết file này
+ * chạy trong môi trường Node (cho `global`, `require`) + Jest (cho `jest`,
+ * `describe`, `test`, `expect`) → các warning "Unresolved variable" biến mất.
  */
 const { loadSource } = require('./helpers/load-source');
 
@@ -35,10 +40,10 @@ global.Enemy = class Enemy {
     constructor(cfg) { Object.assign(this, cfg); }
 };
 
-// Load config.js → expose GAME_CONFIG
-loadSource('config.js', ['GAME_CONFIG']);
+// Load config.js → expose GAME_CONFIG (path cập nhật sau refactor cấu trúc dự án)
+loadSource('src/core/config.js', ['GAME_CONFIG']);
 // Load wave_manager.js → expose Wave_Manager
-loadSource('wave_manager.js', ['Wave_Manager']);
+loadSource('src/managers/wave_manager.js', ['Wave_Manager']);
 
 // =====================================================================
 describe('Wave_Manager.getWaveTotalCount', () => {

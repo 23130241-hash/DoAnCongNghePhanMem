@@ -22,10 +22,16 @@
         "appId": "com.yourname.kingdomdefense",
         "productName": "KingdomDefense",
         "files": [
-            "index.html", "style.css", "config.js",
-            "game.js", "main.js",
-            "wave_manager.js", "base_collision.js",
-            "campaign.js", "upgrade_system.js"
+            "index.html",
+            "main.js",
+            "css/style.css",
+            "src/core/config.js",
+            "src/core/game.js",
+            "src/managers/wave_manager.js",
+            "src/managers/base_collision.js",
+            "src/managers/campaign.js",
+            "src/managers/combo_damge.js",
+            "src/managers/upgrade_system.js"
         ],
         "win": {
             "target": "portable",

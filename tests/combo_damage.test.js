@@ -42,7 +42,7 @@ const { loadSource } = require('./helpers/load-source');
 beforeAll(() => {
     // Nạp file combo_damge.js vào môi trường test toàn cục
     // Lưu ý: Điền đúng tên file thực tế của bạn đang là 'combo_damge.js'
-    loadSource('combo_damge.js');
+    loadSource('src/managers/combo_damge.js');
 });
 
 beforeEach(() => {
