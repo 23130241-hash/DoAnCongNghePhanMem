@@ -1,3 +1,4 @@
+/* eslint-env node, jest */
 /**
  * Helper: load file vanilla JS (config.js / wave_manager.js) vào môi trường test.
  *
