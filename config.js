@@ -14,11 +14,13 @@ const GAME_CONFIG = {
     /* -----------------------------------------------------------------
      * 1) MAPS — Bản đồ (đường đi & vị trí đặt tháp)
      * -----------------------------------------------------------------
-     * Để thêm map mới: copy 1 entry, đổi key, sửa path & buildSpots.
-     *   - path:        Mảng waypoint kẻ thù sẽ đi qua, theo thứ tự.
+     * Để thêm map mới: copy 1 entry, đổi key, sửa paths & buildSpots.
+     *   - paths:       Mảng CÁC path. Mỗi path là mảng waypoint quái đi qua.
+     *                  Map cũ chỉ có 1 path → paths: [[...]]
+     *                  Map mới có thể có nhiều path → paths: [[A...], [B...]]
      *   - buildSpots:  Vị trí có thể đặt tháp.
      *   - base:        Tọa độ căn cứ (cuối đường + vùng "an toàn").
-     *   - spawn:       Tọa độ điểm spawn quái (= path[0]).
+     *   - spawn:       Tọa độ điểm spawn quái mỗi path (= paths[i][0]).
      * ---------------------------------------------------------------- */
     MAPS: {
         map01: {
@@ -26,10 +28,13 @@ const GAME_CONFIG = {
             background: "#27ae60",
             pathColor: "#e67e22",
             pathInnerColor: "#d35400",
-            path: [
-                { x: -50, y: 300 }, { x: 250, y: 300 },
-                { x: 250, y: 180 }, { x: 550, y: 180 },
-                { x: 550, y: 450 }, { x: 950, y: 450 }
+            paths: [
+                // Path 0 — đường đi duy nhất của map01
+                [
+                    { x: -50, y: 300 }, { x: 250, y: 300 },
+                    { x: 250, y: 180 }, { x: 550, y: 180 },
+                    { x: 550, y: 450 }, { x: 950, y: 450 }
+                ]
             ],
             buildSpots: [
                 { x: 180, y: 220 }, { x: 400, y: 120 },
@@ -43,11 +48,14 @@ const GAME_CONFIG = {
             background: "#34495e",
             pathColor: "#95a5a6",
             pathInnerColor: "#7f8c8d",
-            path: [
-                { x: -50, y: 100 }, { x: 200, y: 100 },
-                { x: 200, y: 350 }, { x: 450, y: 350 },
-                { x: 450, y: 150 }, { x: 700, y: 150 },
-                { x: 700, y: 500 }, { x: 950, y: 500 }
+            paths: [
+                // Path 0 — đường đi duy nhất của map02
+                [
+                    { x: -50, y: 100 }, { x: 200, y: 100 },
+                    { x: 200, y: 350 }, { x: 450, y: 350 },
+                    { x: 450, y: 150 }, { x: 700, y: 150 },
+                    { x: 700, y: 500 }, { x: 950, y: 500 }
+                ]
             ],
             buildSpots: [
                 { x: 120, y: 220 }, { x: 320, y: 220 },
@@ -65,12 +73,15 @@ const GAME_CONFIG = {
             background: "#1a0f0a",
             pathColor: "#5d4037",
             pathInnerColor: "#3e2723",
-            path: [
-                { x: -50, y: 250 }, { x: 150, y: 250 },
-                { x: 150, y: 100 }, { x: 350, y: 100 },
-                { x: 350, y: 400 }, { x: 550, y: 400 },
-                { x: 550, y: 200 }, { x: 750, y: 200 },
-                { x: 750, y: 500 }, { x: 950, y: 500 }
+            paths: [
+                // Path 0 — đường đi duy nhất của map03
+                [
+                    { x: -50, y: 250 }, { x: 150, y: 250 },
+                    { x: 150, y: 100 }, { x: 350, y: 100 },
+                    { x: 350, y: 400 }, { x: 550, y: 400 },
+                    { x: 550, y: 200 }, { x: 750, y: 200 },
+                    { x: 750, y: 500 }, { x: 950, y: 500 }
+                ]
             ],
             buildSpots: [
                 { x: 80,  y: 180 }, { x: 240, y: 180 },

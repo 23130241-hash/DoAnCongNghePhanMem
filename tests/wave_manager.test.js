@@ -177,19 +177,32 @@ describe('GAME_CONFIG validation (config.js)', () => {
         expect(GAME_CONFIG.GAMEPLAY).toBeDefined();
     });
 
-    test('Mỗi map có path, buildSpots, base với cấu trúc hợp lệ', () => {
+    test('Mỗi map có paths, buildSpots, base với cấu trúc hợp lệ', () => {
         for (const [mapId, map] of Object.entries(GAME_CONFIG.MAPS)) {
-            expect(Array.isArray(map.path)).toBe(true);
-            expect(map.path.length).toBeGreaterThanOrEqual(2);
+            // [Commit 15] Format mới — paths là mảng các path
+            expect(Array.isArray(map.paths)).toBe(true);
+            expect(map.paths.length).toBeGreaterThanOrEqual(1);
+            // Mỗi path phải có ≥ 2 waypoint và mỗi waypoint có x, y
+            map.paths.forEach((path, pIdx) => {
+                expect(Array.isArray(path)).toBe(true);
+                expect(path.length).toBeGreaterThanOrEqual(2);
+                path.forEach(pt => {
+                    expect(typeof pt.x).toBe('number');
+                    expect(typeof pt.y).toBe('number');
+                });
+            });
             expect(Array.isArray(map.buildSpots)).toBe(true);
             expect(map.base).toBeDefined();
             expect(typeof map.base.x).toBe('number');
             expect(typeof map.base.y).toBe('number');
-            // Mỗi waypoint phải có x, y
-            map.path.forEach(pt => {
-                expect(typeof pt.x).toBe('number');
-                expect(typeof pt.y).toBe('number');
-            });
+        }
+    });
+
+    test('Map cũ không còn dùng property "path" (đã chuyển sang "paths")', () => {
+        for (const [mapId, map] of Object.entries(GAME_CONFIG.MAPS)) {
+            // Có thể tồn tại với value undefined (do destructure cũ), nhưng
+            // KHÔNG được là array — nếu vẫn là array thì chưa migrate
+            expect(Array.isArray(map.path)).toBe(false);
         }
     });
 

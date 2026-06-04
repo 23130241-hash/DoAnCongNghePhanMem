@@ -147,8 +147,25 @@ const Map_Grid = {
     mapId: null,
     buildSpots: [],
     occupiedSpots: [],
-    path: [],
+    // [Commit 15] paths = mảng các path (mỗi path là mảng waypoint).
+    // Map cũ chỉ có 1 path → paths.length === 1.
+    // Map mới (map04 trở đi) có thể có nhiều path → paths.length ≥ 2.
+    paths: [],
     base: null,
+
+    // [Commit 15] Backward compat — code cũ truy cập Map_Grid.path[...]
+    // sẽ tự lấy path đầu tiên (paths[0]). Không có setter — chỉ đọc.
+    get path() {
+        return this.paths[0] || [];
+    },
+
+    /**
+     * [Commit 15] Trả về path theo index. Dùng cho enemy biết mình đi
+     * path nào (enemy.pathIndex sẽ được implement ở Commit 17).
+     */
+    getPath(index = 0) {
+        return this.paths[index] || [];
+    },
 
     /** Tải dữ liệu map từ config. */
     loadMap(mapId) {
@@ -160,7 +177,13 @@ const Map_Grid = {
         }
 
         this.mapId = mapId;
-        this.path = map.path.map(p => ({ ...p }));
+        // [Commit 15] Hỗ trợ cả 2 format:
+        //   - Mới: map.paths = [[...path0...], [...path1...], ...]
+        //   - Cũ:  map.path  = [...path0...]   (bọc lại thành paths)
+        const rawPaths = Array.isArray(map.paths) ? map.paths
+                       : (Array.isArray(map.path) ? [map.path] : []);
+        // Deep clone tất cả waypoints để tránh sửa nhầm config gốc
+        this.paths = rawPaths.map(path => path.map(p => ({ ...p })));
         this.buildSpots = map.buildSpots.map(p => ({ ...p }));
         this.base = { ...map.base };
         this.occupiedSpots = [];
