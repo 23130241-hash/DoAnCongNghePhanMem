@@ -89,15 +89,15 @@ describe('Wave_Manager._isBossWave', () => {
         expect(Wave_Manager._isBossWave({ enemyType: 'skeleton', count: 12 })).toBe(false);
     });
 
-    test('true cho wave có enemyType là boss', () => {
-        expect(Wave_Manager._isBossWave({ enemyType: 'boss', count: 1 })).toBe(true);
+    test('true cho wave có enemyType là boss1', () => {
+        expect(Wave_Manager._isBossWave({ enemyType: 'boss1', count: 1 })).toBe(true);
     });
 
-    test('true nếu một group bất kỳ chứa boss', () => {
+    test('true nếu một group bất kỳ chứa boss1', () => {
         const wave = {
             groups: [
                 { enemyType: 'creep', count: 5 },
-                { enemyType: 'boss', count: 1 },
+                { enemyType: 'boss1', count: 1 },
             ]
         };
         expect(Wave_Manager._isBossWave(wave)).toBe(true);
@@ -235,9 +235,11 @@ describe('GAME_CONFIG validation (config.js)', () => {
         expect(GAME_CONFIG.ENEMIES.skeleton.damage).toBe(2);
     });
 
-    test('Boss enemy có flag isBoss = true', () => {
-        expect(GAME_CONFIG.ENEMIES.boss).toBeDefined();
-        expect(GAME_CONFIG.ENEMIES.boss.isBoss).toBe(true);
+    test('Boss1 enemy có flag isBoss = true (đặt tên có hậu tố cho mở rộng boss2/3)', () => {
+        expect(GAME_CONFIG.ENEMIES.boss1).toBeDefined();
+        expect(GAME_CONFIG.ENEMIES.boss1.isBoss).toBe(true);
+        // Đảm bảo key cũ 'boss' đã bị rename, không còn tồn tại
+        expect(GAME_CONFIG.ENEMIES.boss).toBeUndefined();
     });
 
     test('Level 3 sử dụng map03 và có wave format groups', () => {

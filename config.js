@@ -99,11 +99,14 @@ const GAME_CONFIG = {
          * theme "undead fortress" của map03.                          */
         skeleton:   { name: "Skeleton", hp: 60, speed: 1.3, reward: 25, size: 18, damage: 2, color: '#ecf0f1', icon: '💀' },
 
-        /* [UC09 - Commit 1] Boss enemy — loại quái đặc biệt
-         * isBoss: true  → Wave_Manager sẽ hiển thị cảnh báo đặc biệt
-         *                  và render health bar riêng trên giao diện.
-         * Spawn bởi wave_manager.js khi gặp wave có boss type.       */
-        boss:       { name: "Boss",   hp: 1000, speed: 0.5, reward: 100, size: 30, damage: 5, color: '#8b0000', icon: '👹', isBoss: true }
+        /* [UC09 - Commit 1] Boss enemy — loại quái đặc biệt (isBoss: true)
+         * Wave_Manager sẽ hiển thị cảnh báo đặc biệt và render health bar
+         * riêng trên giao diện cho bất kỳ enemy nào có isBoss=true.
+         *
+         * Đặt tên có hậu tố số (boss1, boss2, ...) để dễ mở rộng các loại
+         * boss khác trong tương lai (boss2 nhanh hơn, boss3 hồi máu...).
+         * Spawn bởi wave_manager.js khi gặp wave có enemyType là boss*.   */
+        boss1:      { name: "Boss 1", hp: 1000, speed: 0.5, reward: 100, size: 30, damage: 5, color: '#8b0000', icon: '👹', isBoss: true }
     },
 
     /* -----------------------------------------------------------------
@@ -201,7 +204,7 @@ const GAME_CONFIG = {
                 },
 
                 // Wave 3 — Boss wave (isBoss=true sẽ trigger cảnh báo đỏ)
-                { enemyType: 'boss', count: 1, interval: 5000 }
+                { enemyType: 'boss1', count: 1, interval: 5000 }
             ]
         }
     },
