@@ -923,7 +923,8 @@ const UI_Manager = {
             this.mouseX = clickX; // [UC03] Cập nhật tọa độ cho Range Preview
             this.mouseY = clickY;
 
-            if (!this.selectedTowerSlot || Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
+            // Sử dụng UI_Manager thay vì this để an toàn hơn trong các môi trường test/closure phức tạp
+            if (!UI_Manager.selectedTowerSlot || Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
                 this.hoverBuildSpot = null;
                 return;
             }
