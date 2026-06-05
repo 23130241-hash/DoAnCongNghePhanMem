@@ -90,6 +90,49 @@ const GAME_CONFIG = {
                 { x: 650, y: 320 }, { x: 820, y: 350 }
             ],
             base: { x: 900, y: 500, radius: 60 }
+        },
+
+        /* [Commit 16] Map 4 — Ngã ba phòng tuyến
+         * Map đầu tiên có 2 đường spawn quái:
+         *   Path 0 (A): từ phải qua trái thẳng đến base (đường ngang chính)
+         *   Path 1 (B): từ dưới lên giữa rồi rẽ trái đến base (chữ L)
+         * Hai path hội tụ tại base bên trái → tạo "ngã ba" phòng thủ.
+         *
+         * Build spots được phân bố để cover cả 2 path: nhóm trên/giữa cho
+         * Path A, nhóm giữa/dưới cho Path B, và vài spot ở khu vực giao
+         * cắt để có thể bắn cả 2.
+         *
+         * COMMIT 16 chỉ thêm cấu hình map + render. Level 4 sử dụng map
+         * này (với pathIndex + format `parallel`) sẽ được thêm ở Commit 19. */
+        map04: {
+            name: "Ngã ba phòng tuyến",
+            background: "#2c3e50",
+            pathColor: "#d35400",
+            pathInnerColor: "#a04000",
+            paths: [
+                // Path 0 (A) — phải → trái → base
+                [
+                    { x: 950, y: 250 }, { x: 700, y: 250 },
+                    { x: 700, y: 350 }, { x: 50,  y: 350 }
+                ],
+                // Path 1 (B) — dưới → lên giữa → trái → base
+                [
+                    { x: 500, y: 650 }, { x: 500, y: 350 },
+                    { x: 50,  y: 350 }
+                ]
+            ],
+            buildSpots: [
+                // Khu vực Path A (phía trên)
+                { x: 820, y: 180 }, { x: 820, y: 320 },
+                { x: 600, y: 180 }, { x: 600, y: 280 },
+                // Khu vực Path B (phía dưới)
+                { x: 420, y: 500 }, { x: 580, y: 500 },
+                { x: 420, y: 250 }, { x: 580, y: 250 },
+                // Khu vực giao cắt (cover cả 2 path)
+                { x: 300, y: 280 }, { x: 300, y: 420 },
+                { x: 180, y: 280 }, { x: 180, y: 420 }
+            ],
+            base: { x: 50, y: 350, radius: 60 }
         }
     },
 

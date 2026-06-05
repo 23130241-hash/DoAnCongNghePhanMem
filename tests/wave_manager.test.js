@@ -31,8 +31,17 @@ global.Player_Stats = {
 global.UI_Manager = {
     updateUI: jest.fn(),
 };
+// [Commit 17] Mock paths[] thay vì path (cấu trúc mới hỗ trợ multi-path)
 global.Map_Grid = {
-    path: [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+    paths: [
+        // Path 0 — đường mặc định cho wave format cũ
+        [{ x: 0, y: 0 }, { x: 100, y: 0 }],
+        // Path 1 — đường thứ 2 cho wave có pathIndex:1
+        [{ x: 500, y: 500 }, { x: 500, y: 100 }, { x: 100, y: 100 }],
+    ],
+    // Giữ path getter cho code cũ (dù wave_manager test không dùng)
+    get path() { return this.paths[0]; },
+    getPath(idx = 0) { return this.paths[idx] || []; },
 };
 global.currentLevel = 1;
 // Stub Enemy class
@@ -168,6 +177,57 @@ describe('Wave_Manager state lifecycle', () => {
         Wave_Manager.update(16.67);
         expect(Wave_Manager.waveTimer).toBe(before);
         Game_Manager.isGameOver = false;
+    });
+});
+
+// =====================================================================
+describe('Wave_Manager._spawnEnemy với pathIndex [Commit 17]', () => {
+
+    beforeEach(() => {
+        // Reset enemies list trước mỗi test
+        Game_Manager.enemies = [];
+        Wave_Manager.enemiesSpawnedThisWave = 0;
+    });
+
+    test('spawn KHÔNG truyền pathIndex → enemy.pathIndex = 0 (default)', () => {
+        Wave_Manager._spawnEnemy('creep');
+        const enemy = Game_Manager.enemies[0];
+        expect(enemy.pathIndex).toBe(0);
+        // Spawn position phải = path 0 start: (0, 0)
+        expect(enemy.x).toBe(0);
+        expect(enemy.y).toBe(0);
+    });
+
+    test('spawn với pathIndex=1 → enemy.pathIndex = 1, spawn ở start path 1', () => {
+        Wave_Manager._spawnEnemy('creep', 1);
+        const enemy = Game_Manager.enemies[0];
+        expect(enemy.pathIndex).toBe(1);
+        // Spawn position phải = path 1 start: (500, 500)
+        expect(enemy.x).toBe(500);
+        expect(enemy.y).toBe(500);
+    });
+
+    test('spawn với pathIndex không tồn tại → fallback về path 0', () => {
+        Wave_Manager._spawnEnemy('creep', 99);
+        const enemy = Game_Manager.enemies[0];
+        // Fallback path 0 → spawn ở (0, 0), nhưng pathIndex giữ giá trị truyền vào
+        // (tránh silent corrupt — code dùng `paths[99] || paths[0]` cho spawn point
+        // nhưng pathIndex enemy vẫn = 99 để debug. Trong game thực Game_Manager
+        // updateEnemyPosition cũng có fallback ?? 0)
+        expect(enemy.x).toBe(0);
+        expect(enemy.y).toBe(0);
+    });
+
+    test('enemy có pathIndex đúng khi spawn nhiều con liên tiếp ở 2 path khác nhau', () => {
+        Wave_Manager._spawnEnemy('creep', 0);
+        Wave_Manager._spawnEnemy('creep', 1);
+        Wave_Manager._spawnEnemy('creep', 0);
+        Wave_Manager._spawnEnemy('creep', 1);
+
+        expect(Game_Manager.enemies[0].pathIndex).toBe(0);
+        expect(Game_Manager.enemies[1].pathIndex).toBe(1);
+        expect(Game_Manager.enemies[2].pathIndex).toBe(0);
+        expect(Game_Manager.enemies[3].pathIndex).toBe(1);
     });
 });
 
