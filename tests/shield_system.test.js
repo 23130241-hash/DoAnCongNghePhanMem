@@ -200,17 +200,18 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
     // ─────────────────────────────────────────────────────────────────────────
     describe('Nhóm 2 — Hồi Máu (❤️ Buy Heal)', () => {
 
-        test('BR-Shield-05: Hồi máu thành công — trừ tiền và cộng HP đúng (+15)', () => {
-            Player_Stats.money = 200; // Vừa khít 200g tiền mua mới
+        test('BR-Shield-05: Hồi máu thành công — trừ tiền và cộng HP đúng (+10)', () => {
+            Player_Stats.money = 200; // Đủ 200g tiền mua
             Player_Stats.hp    = 5;
             Player_Stats.maxHp = 20;
 
             global.Shield.testHeal();
 
-            // SỬA GIÁ MỚI: Tiền giảm sạch về 0 (200g - 200g = 0)
+            // Tiền giảm sạch về 0 (200g - 200g = 0)
             expect(Player_Stats.money).toBe(0);
-            expect(Player_Stats.hp).toBe(20);
-            expect(UI_Manager.updateHPDisplay).toHaveBeenCalledWith(20);
+
+            expect(Player_Stats.hp).toBe(15);
+            expect(UI_Manager.updateHPDisplay).toHaveBeenCalledWith(15);
             expect(UI_Manager.updateUI).toHaveBeenCalled();
         });
 
