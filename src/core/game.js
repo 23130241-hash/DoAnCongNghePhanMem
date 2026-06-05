@@ -772,6 +772,8 @@ const UI_Manager = {
     selectedTowerSlot: null,
     interactTower: null,
     hoverBuildSpot: null,
+    radialMenu: null, // [UC03] Lưu element Radial Menu
+    activeRadialSpot: null, // [UC03] Lưu Build Spot đang mở menu
     mouseX: 0, mouseY: 0, // [UC03] Tọa độ chuột phục vụ Range Preview
     errorTimer: null,
     flashTimer: null,
@@ -782,6 +784,7 @@ const UI_Manager = {
         this.ctx = this.canvas.getContext('2d');
         this.canvas.width = GAME_CONFIG.GAMEPLAY.canvasWidth;
         this.canvas.height = GAME_CONFIG.GAMEPLAY.canvasHeight;
+        this.radialMenu = document.getElementById('radial-menu');
 
         this._bindMenuButtons();
         this._bindGameControls();
@@ -790,6 +793,7 @@ const UI_Manager = {
         this._bindCanvasHover();
         this._bindTowerMenu();
         this._bindGameOverModal();
+        this._bindRadialMenu();
 
         this.updateUI();
     },
@@ -899,9 +903,16 @@ const UI_Manager = {
                 }
 
                 this.hideTowerMenu();
+                this.hideRadialMenu(); // [UC03] Đóng menu cũ khi click nơi khác
 
                 if (!this.selectedTowerSlot) {
                     const positionCheck = Map_Grid.checkValidPosition(clickX, clickY);
+
+                    // [UC03 — Radial Menu] Nếu click vào một Build Spot trống
+                    if (positionCheck.spot && positionCheck.valid) {
+                        this.showRadialMenu(positionCheck.spot.x, positionCheck.spot.y, positionCheck.spot);
+                        return;
+                    }
 
                     if (positionCheck.spot) {
                         this.showError("Hãy chọn loại tháp trước", "#f1c40f");
@@ -1001,6 +1012,7 @@ const UI_Manager = {
         this.hideVictory();
         this.clearSelected();
         this.hideTowerMenu();
+        this.hideRadialMenu(); // [UC03]
 
         // BUG FIX: Cancel RAF loop cũ trước khi restart
         if (Game_Manager._rafId) {
@@ -1032,6 +1044,7 @@ const UI_Manager = {
         this.hideTowerMenu();
         this.hideGameOver();
         this.hideVictory();
+        this.hideRadialMenu(); // [UC03]
         document.getElementById('game-container').classList.add('hidden');
         document.getElementById('main-menu').classList.remove('hidden');
     },
@@ -1041,6 +1054,7 @@ const UI_Manager = {
     clearSelected() {
         this.selectedTowerSlot = null;
         this.hoverBuildSpot = null;
+        this.hideRadialMenu();
 
         document.querySelectorAll('.slot').forEach(slot =>
             slot.classList.remove('selected')
@@ -1078,6 +1092,67 @@ const UI_Manager = {
     hideTowerMenu() {
         document.getElementById('tower-menu').classList.add('hidden');
         this.interactTower = null;
+    },
+
+    /* ---------- [UC03] Radial Menu Handlers ---------- */
+
+    _bindRadialMenu() {
+        // Có thể bổ sung click-out để đóng menu nếu cần
+    },
+
+    showRadialMenu(x, y, spot) {
+        this.activeRadialSpot = spot;
+        const container = document.getElementById('radial-items-container');
+        if (!container || !this.radialMenu) return; // Guard: tránh crash khi DOM chưa sẵn sàng
+        container.innerHTML = ''; // Clear cũ
+
+        // Lấy danh sách tháp có sẵn (không bị locked)
+        const activeTowers = [];
+        for (const [type, cfg] of Object.entries(GAME_CONFIG.TOWERS)) {
+            // Check tháp đó có đang ở trạng thái locked trên UI không
+            const slot = document.querySelector(`.slot[data-type="${type}"]`);
+            if (slot && !slot.classList.contains('locked')) {
+                activeTowers.push({ type, ...cfg });
+            }
+        }
+
+        const count = activeTowers.length;
+        activeTowers.forEach((tower, i) => {
+            const item = document.createElement('div');
+            item.className = 'radial-item';
+            
+            const cost = tower.levels[0].cost;
+            const canAfford = Player_Stats.checkMoney(cost);
+            if (!canAfford) item.classList.add('disabled');
+
+            item.innerHTML = `
+                <div class="ri-icon">${tower.levels[0].icon}</div>
+                <div class="ri-cost">${cost}g</div>
+            `;
+
+            item.onclick = (e) => {
+                e.stopPropagation();
+                if (!canAfford) {
+                    this.showError("Không đủ vàng!", "#f1c40f");
+                    return;
+                }
+                Game_Manager.requestBuildTower(spot.x, spot.y, tower.type);
+                this.hideRadialMenu();
+            };
+
+            container.appendChild(item);
+        });
+
+        this.radialMenu.style.left = x + 'px';
+        this.radialMenu.style.top = y + 'px';
+        this.radialMenu.classList.remove('hidden');
+    },
+
+    hideRadialMenu() {
+        if (this.radialMenu) {
+            this.radialMenu.classList.add('hidden');
+            this.activeRadialSpot = null;
+        }
     },
 
 
