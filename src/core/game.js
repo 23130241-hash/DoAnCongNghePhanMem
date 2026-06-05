@@ -312,8 +312,7 @@ class Tower {
                     target = enemy;
                 } 
                 else if (enemy.node === target.node) {
-                    // [Commit 17] Lấy nextPoint từ path RIÊNG của enemy (multi-path)
-                    const nextPoint = Map_Grid.paths[enemy.pathIndex || 0]?.[enemy.node];
+                    const nextPoint = Map_Grid.path[enemy.node];
                     if (nextPoint) {
                         const distTarget = Math.hypot(target.x - nextPoint.x, target.y - nextPoint.y);
                         const distEnemy = Math.hypot(enemy.x - nextPoint.x, enemy.y - nextPoint.y);
@@ -551,11 +550,7 @@ const Game_Manager = {
      * Cập nhật vị trí của tất cả kẻ thù trên bản đồ
      */
     updateEnemyPosition(enemy) {
-        // [Commit 17] Đọc path theo pathIndex riêng của enemy (multi-path)
-        // pathIndex mặc định 0 → map cũ vẫn chạy đúng (backward compat)
-        const path = Map_Grid.paths[enemy.pathIndex || 0];
-        if (!path) return;
-        const target = path[enemy.node];
+        const target = Map_Grid.path[enemy.node];
         if (!target) return;
         const dx = target.x - enemy.x, dy = target.y - enemy.y;
         if (Math.hypot(dx, dy) < 5) {
@@ -572,10 +567,8 @@ const Game_Manager = {
      * Kiểm tra tọa độ kẻ thù so với vùng an toàn của căn cứ
      */
     checkBaseCollision(enemy) {
-        // [Commit 17] Check path riêng của enemy theo pathIndex
-        const path = Map_Grid.paths[enemy.pathIndex || 0];
-        // Tới điểm cuối đường đi (của path mình)
-        if (!path || enemy.node >= path.length) return true;
+        // Tới điểm cuối đường đi
+        if (enemy.node >= Map_Grid.path.length) return true;
         // Hoặc lọt vào bán kính căn cứ
         const base = Map_Grid.base;
         const hit = GAME_CONFIG.GAMEPLAY.baseHitRadius;
@@ -779,6 +772,7 @@ const UI_Manager = {
     selectedTowerSlot: null,
     interactTower: null,
     hoverBuildSpot: null,
+    mouseX: 0, mouseY: 0, // [UC03] Tọa độ chuột phục vụ Range Preview
     errorTimer: null,
     flashTimer: null,
 
@@ -925,12 +919,16 @@ const UI_Manager = {
     },
     _bindCanvasHover() {
         this.canvas.onmousemove = (e) => {
-            if (!this.selectedTowerSlot || Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
+            const { clickX, clickY } = this.getCanvasPoint(e);
+            this.mouseX = clickX; // [UC03] Cập nhật tọa độ cho Range Preview
+            this.mouseY = clickY;
+
+            // Sử dụng UI_Manager thay vì this để an toàn hơn trong các môi trường test/closure phức tạp
+            if (!UI_Manager.selectedTowerSlot || Game_Manager.isPaused || Game_Manager.isGameOver || Game_Manager.isVictory) {
                 this.hoverBuildSpot = null;
                 return;
             }
 
-            const { clickX, clickY } = this.getCanvasPoint(e);
             const positionCheck = Map_Grid.checkValidPosition(clickX, clickY);
 
             this.hoverBuildSpot = {
@@ -941,6 +939,8 @@ const UI_Manager = {
 
         this.canvas.onmouseleave = () => {
             this.hoverBuildSpot = null;
+            this.mouseX = -1000; // [UC03] Ẩn preview khi chuột rời canvas
+            this.mouseY = -1000;
         };
     },
     getCanvasPoint(e) {
@@ -1179,29 +1179,16 @@ const UI_Manager = {
             ctx.fillRect(0, 0, W, H);
         }
 
-        // [Commit 16] Đường đi — vẽ tất cả paths để hỗ trợ map multi-path.
-        // Helper inline: vẽ 1 polyline từ mảng waypoint.
-        const drawPath = (path) => {
-            if (!path || path.length === 0) return;
+        // Đường đi
+        if (Map_Grid.path.length > 0) {
+            ctx.strokeStyle = map ? map.pathColor : '#e67e22';
+            ctx.lineWidth = 45; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
             ctx.beginPath();
-            path.forEach((p, i) =>
+            Map_Grid.path.forEach((p, i) =>
                 i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.stroke();
-        };
-
-        if (Map_Grid.paths.length > 0) {
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-
-            // Lớp ngoài (outer) — màu chính của đường
-            ctx.strokeStyle = map ? map.pathColor : '#e67e22';
-            ctx.lineWidth = 45;
-            Map_Grid.paths.forEach(drawPath);
-
-            // Lớp trong (inner) — màu đậm hơn, tạo viền
             ctx.strokeStyle = map ? map.pathInnerColor : '#d35400';
-            ctx.lineWidth = 35;
-            Map_Grid.paths.forEach(drawPath);
+            ctx.lineWidth = 35; ctx.stroke();
         }
 
         // Căn cứ
@@ -1343,6 +1330,45 @@ const UI_Manager = {
             ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
             ctx.fillStyle = '#fff'; ctx.font = '50px Arial';
             ctx.fillText('ĐÃ TẠM DỪNG', 270, 300);
+        }
+
+        /* ------------------------------------------------------------------
+         * [UC03 — Đặt tháp phòng thủ | Range Preview]
+         * Hiển thị tầm bắn và tháp mờ (ghost tower) trước khi xây dựng.
+         * ------------------------------------------------------------------ */
+        if (this.selectedTowerSlot && this.mouseX > 0) {
+            const type = this.selectedTowerSlot.type;
+            const range = GAME_CONFIG.TOWERS[type].levels[0].range;
+            const color = GAME_CONFIG.TOWERS[type].color;
+            
+            // Tạm dùng logic snap nếu có Build Spot gần đó
+            const drawX = this.hoverBuildSpot?.spot ? this.hoverBuildSpot.spot.x : this.mouseX;
+            const drawY = this.hoverBuildSpot?.spot ? this.hoverBuildSpot.spot.y : this.mouseY;
+            const isValid = this.hoverBuildSpot?.valid;
+
+            ctx.save();
+            // 1. Vẽ vòng tròn tầm bắn
+            ctx.beginPath();
+            ctx.arc(drawX, drawY, range, 0, Math.PI * 2);
+            ctx.fillStyle = isValid ? 'rgba(255, 255, 255, 0.15)' : 'rgba(231, 76, 60, 0.2)';
+            ctx.fill();
+            ctx.setLineDash([5, 5]); // Nét đứt cho chuyên nghiệp
+            ctx.strokeStyle = isValid ? 'rgba(255, 255, 255, 0.5)' : '#e74c3c';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // 2. Vẽ "Ghost Tower" - Hình ảnh mờ của tháp
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(drawX, drawY, 25, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.stroke();
+            const icon = GAME_CONFIG.TOWERS[type].levels[0].icon;
+            ctx.globalAlpha = 0.8;
+            ctx.font = '22px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(icon, drawX, drawY + 1);
+            ctx.restore();
         }
 
         Game_Manager._rafId = requestAnimationFrame(() => this.renderLoop());
