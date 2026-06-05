@@ -1103,6 +1103,7 @@ const UI_Manager = {
     showRadialMenu(x, y, spot) {
         this.activeRadialSpot = spot;
         const container = document.getElementById('radial-items-container');
+        if (!container || !this.radialMenu) return; // Guard: tránh crash khi DOM chưa sẵn sàng
         container.innerHTML = ''; // Clear cũ
 
         // Lấy danh sách tháp có sẵn (không bị locked)
