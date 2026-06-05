@@ -158,14 +158,15 @@ const Wave_Manager = {
     },
 
     /**
-     * [UC09 - 09.1.3a] Spawn cho format CŨ: { enemyType, count, interval }
+     * [UC09 - 09.1.3a] Spawn cho format CŨ: { enemyType, count, interval, pathIndex? }
+     * [Commit 17] Hỗ trợ `pathIndex` (mặc định 0) — wave có thể chỉ định path
      */
     _updateSimpleSpawn(dt, waveData) {
         const count = waveData.count || 0;
         if (this.enemiesSpawnedThisWave < count) {
             this.spawnTimer -= dt;
             if (this.spawnTimer <= 0) {
-                this._spawnEnemy(waveData.enemyType);
+                this._spawnEnemy(waveData.enemyType, waveData.pathIndex || 0);
                 this.spawnTimer = waveData.interval;
             }
         } else if (Game_Manager.enemies.length === 0 &&
@@ -197,7 +198,8 @@ const Wave_Manager = {
             this.spawnTimer -= dt;
             if (this.spawnTimer <= 0) {
                 // _spawnEnemy đã tự tăng enemiesSpawnedThisWave bên trong
-                this._spawnEnemy(group.enemyType);
+                // [Commit 17] Mỗi group có thể có pathIndex riêng → spawn trên path đó
+                this._spawnEnemy(group.enemyType, group.pathIndex || 0);
                 this.groupSpawnedCount++;
                 this.spawnTimer = group.interval;
             }
@@ -227,18 +229,27 @@ const Wave_Manager = {
     /**
      * Tạo Enemy mới ở điểm spawn và đẩy vào danh sách của Game_Manager.
      * [Sequence 09.1.6]
+     * @param {string} type — key trong GAME_CONFIG.ENEMIES
+     * @param {number} pathIndex — [Commit 17] index của path enemy sẽ đi (default 0)
      */
-    _spawnEnemy(type) {
+    _spawnEnemy(type, pathIndex = 0) {
         const enemyStats = GAME_CONFIG.ENEMIES[type];
         if (!enemyStats) {
             console.error(`[Wave_Manager] Không tìm thấy enemy type: ${type}`);
             return;
         }
+        // [Commit 17] Lấy spawn point từ path tương ứng. Nếu pathIndex sai → fallback path 0.
+        const path = Map_Grid.paths[pathIndex] || Map_Grid.paths[0];
+        if (!path || path.length === 0) {
+            console.error(`[Wave_Manager] Path không tồn tại: pathIndex=${pathIndex}`);
+            return;
+        }
         const enemy = new Enemy({
-            x: Map_Grid.path[0].x, y: Map_Grid.path[0].y,
+            x: path[0].x, y: path[0].y,
             hp: enemyStats.hp, maxHp: enemyStats.hp,
             speed: enemyStats.speed,
             node: 1,
+            pathIndex: pathIndex,                  // [Commit 17] Enemy nhớ path mình đi
             size: enemyStats.size,
             reward: enemyStats.reward,
             damage: enemyStats.damage,

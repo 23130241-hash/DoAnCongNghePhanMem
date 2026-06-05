@@ -312,7 +312,8 @@ class Tower {
                     target = enemy;
                 } 
                 else if (enemy.node === target.node) {
-                    const nextPoint = Map_Grid.path[enemy.node];
+                    // [Commit 17] Lấy nextPoint từ path RIÊNG của enemy (multi-path)
+                    const nextPoint = Map_Grid.paths[enemy.pathIndex || 0]?.[enemy.node];
                     if (nextPoint) {
                         const distTarget = Math.hypot(target.x - nextPoint.x, target.y - nextPoint.y);
                         const distEnemy = Math.hypot(enemy.x - nextPoint.x, enemy.y - nextPoint.y);
@@ -550,7 +551,11 @@ const Game_Manager = {
      * Cập nhật vị trí của tất cả kẻ thù trên bản đồ
      */
     updateEnemyPosition(enemy) {
-        const target = Map_Grid.path[enemy.node];
+        // [Commit 17] Đọc path theo pathIndex riêng của enemy (multi-path)
+        // pathIndex mặc định 0 → map cũ vẫn chạy đúng (backward compat)
+        const path = Map_Grid.paths[enemy.pathIndex || 0];
+        if (!path) return;
+        const target = path[enemy.node];
         if (!target) return;
         const dx = target.x - enemy.x, dy = target.y - enemy.y;
         if (Math.hypot(dx, dy) < 5) {
@@ -567,8 +572,10 @@ const Game_Manager = {
      * Kiểm tra tọa độ kẻ thù so với vùng an toàn của căn cứ
      */
     checkBaseCollision(enemy) {
-        // Tới điểm cuối đường đi
-        if (enemy.node >= Map_Grid.path.length) return true;
+        // [Commit 17] Check path riêng của enemy theo pathIndex
+        const path = Map_Grid.paths[enemy.pathIndex || 0];
+        // Tới điểm cuối đường đi (của path mình)
+        if (!path || enemy.node >= path.length) return true;
         // Hoặc lọt vào bán kính căn cứ
         const base = Map_Grid.base;
         const hit = GAME_CONFIG.GAMEPLAY.baseHitRadius;
@@ -1172,16 +1179,29 @@ const UI_Manager = {
             ctx.fillRect(0, 0, W, H);
         }
 
-        // Đường đi
-        if (Map_Grid.path.length > 0) {
-            ctx.strokeStyle = map ? map.pathColor : '#e67e22';
-            ctx.lineWidth = 45; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // [Commit 16] Đường đi — vẽ tất cả paths để hỗ trợ map multi-path.
+        // Helper inline: vẽ 1 polyline từ mảng waypoint.
+        const drawPath = (path) => {
+            if (!path || path.length === 0) return;
             ctx.beginPath();
-            Map_Grid.path.forEach((p, i) =>
+            path.forEach((p, i) =>
                 i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.stroke();
+        };
+
+        if (Map_Grid.paths.length > 0) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Lớp ngoài (outer) — màu chính của đường
+            ctx.strokeStyle = map ? map.pathColor : '#e67e22';
+            ctx.lineWidth = 45;
+            Map_Grid.paths.forEach(drawPath);
+
+            // Lớp trong (inner) — màu đậm hơn, tạo viền
             ctx.strokeStyle = map ? map.pathInnerColor : '#d35400';
-            ctx.lineWidth = 35; ctx.stroke();
+            ctx.lineWidth = 35;
+            Map_Grid.paths.forEach(drawPath);
         }
 
         // Căn cứ
