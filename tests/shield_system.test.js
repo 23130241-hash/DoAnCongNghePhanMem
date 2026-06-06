@@ -226,14 +226,14 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
         });
 
         test('BR-Shield-07: HP không vượt quá maxHp khi hồi với HP gần đầy', () => {
-            Player_Stats.money = 300;
+            Player_Stats.money = 600;
             Player_Stats.hp    = 18;
             Player_Stats.maxHp = 20;
 
             global.Shield.testHeal();
 
             expect(Player_Stats.hp).toBe(20);
-            // SỬA GIÁ MỚI: Tiền còn lại phải trừ đi 200g còn 100g
+            // SỬA GIÁ MỚI: Tiền còn lại phải trừ đi 500g còn 100g
             expect(Player_Stats.money).toBe(100);
         });
 
