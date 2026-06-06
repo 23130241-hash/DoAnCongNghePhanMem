@@ -182,7 +182,7 @@ const Enemy_Manager = {
     }
 };
 
-const Map_Grid = {
+const Map_Grid = (typeof Map_Grid !== 'undefined') ? Map_Grid : {
     mapId: null,
     buildSpots: [],
     occupiedSpots: [],
