@@ -40,9 +40,9 @@
     const SHIELD_CONFIG = {
         SHIELD_BUY_COST   : 200,      // Gold mua 1 lần khiên trong game
         SHIELD_BUY_AMOUNT : 10,      // Shield điểm nhận được mỗi lần mua
-        HEAL_BUY_COST     : 200,      // Gold mua 1 lần hồi máu
+        HEAL_BUY_COST     : 500,      // Gold mua 1 lần hồi máu
         HEAL_AMOUNT       : 10,      // HP hồi lại mỗi lần mua (đúng đặc tả: +15)
-        BLAST_COOLDOWN_MS : 30000,   // 30 giây cooldown kỹ năng Xung Phá
+        BLAST_COOLDOWN_MS : 45000,   // 30 giây cooldown kỹ năng Xung Phá
         BLAST_RADIUS      : 150,     // Bán kính tiêu diệt quái (px)
         MAX_SHIELD        : 50,      // Shield tối đa
         FLASH_BLUE_MS     : 500,     // Thời gian nháy xanh (ms)
@@ -214,6 +214,18 @@
             el.style.opacity = '0';
         }, 350);
     };
+    /**
+     * showHealEffect()
+     * Pulse viền xanh lá cho HP stat-box khi hồi máu.
+     */
+    UI_Manager.showHealEffect = function () {
+        const hpBox = document.querySelector('#top-bar .stat-box.hp');
+        if (!hpBox) return;
+        hpBox.classList.remove('hp-heal-pulse');
+        void hpBox.offsetWidth;
+        hpBox.classList.add('hp-heal-pulse');
+        setTimeout(() => hpBox.classList.remove('hp-heal-pulse'), 2500);
+    };
 
     /**
      * showBlastEffect()
@@ -300,6 +312,7 @@
 
         UI_Manager.updateUI();                                       // FIX: sync Gold trên HUD
         UI_Manager.updateHPDisplay(Player_Stats.hp);
+        UI_Manager.showHealEffect();
         UI_Manager.showError(`❤️ Hồi +${healed} HP!`, '#2ecc71');
 
         console.log(
@@ -403,7 +416,7 @@
         box.classList.remove('shield-hit');
         void box.offsetWidth;
         box.classList.add('shield-hit');
-        setTimeout(() => box.classList.remove('shield-hit'), 500);
+        setTimeout(() => box.classList.remove('shield-hit'), 450);
     }
 
     /* ==================================================================
@@ -475,12 +488,21 @@
         s.id = 'shield-system-styles';
         s.textContent = `
             #shield-stat-box.shield-hit {
-                animation: shieldAbsorb 0.45s ease;
+                animation: shieldAbsorb 0.45s ease forwards;
             }
             @keyframes shieldAbsorb {
-                0%  { box-shadow: 0 0 0 #3498db; }
-                40% { box-shadow: 0 0 20px 8px #3498db; }
-                100%{ box-shadow: 0 0 0 #3498db; }
+                0%   { outline: 2px solid rgba(52,152,219,0);   outline-offset: 0px; }
+                30%  { outline: 3px solid rgba(52,152,219,0.9); outline-offset: 3px; }
+                100% { outline: 2px solid rgba(52,152,219,0);   outline-offset: 0px; }
+            }
+            .hp-heal-pulse {
+                animation: hpHealPulse 2.5s ease forwards;
+            }
+            @keyframes hpHealPulse {
+                0%   { outline: 2px solid rgba(46,204,113,0);   outline-offset: 0px; }
+                20%  { outline: 3px solid rgba(46,204,113,0.9); outline-offset: 4px; }
+                70%  { outline: 3px solid rgba(46,204,113,0.5); outline-offset: 2px; }
+                100% { outline: 2px solid rgba(46,204,113,0);   outline-offset: 0px; }
             }
             #shield-action-bar button:hover:not(:disabled) {
                 transform: translateY(-2px);
