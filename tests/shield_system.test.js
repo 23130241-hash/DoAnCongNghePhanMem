@@ -196,18 +196,18 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // NHÓM 2: HỒI MÁU (_onBuyHeal) - GIÁ MỚI 200G
+    // NHÓM 2: HỒI MÁU (_onBuyHeal) - GIÁ MỚI 500G
     // ─────────────────────────────────────────────────────────────────────────
     describe('Nhóm 2 — Hồi Máu (❤️ Buy Heal)', () => {
 
         test('BR-Shield-05: Hồi máu thành công — trừ tiền và cộng HP đúng (+10)', () => {
-            Player_Stats.money = 200; // Đủ 200g tiền mua
+            Player_Stats.money = 500; // Đủ 5500g tiền mua
             Player_Stats.hp    = 5;
             Player_Stats.maxHp = 20;
 
             global.Shield.testHeal();
 
-            // Tiền giảm sạch về 0 (200g - 200g = 0)
+            // Tiền giảm sạch về 0 (500g - 500g = 0)
             expect(Player_Stats.money).toBe(0);
 
             expect(Player_Stats.hp).toBe(15);
@@ -216,12 +216,12 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
         });
 
         test('BR-Shield-06: Hồi máu phải trừ tiền thật (money không còn nguyên)', () => {
-            Player_Stats.money = 300;
+            Player_Stats.money = 600;
             Player_Stats.hp    = 10;
 
             global.Shield.testHeal();
 
-            // SỬA GIÁ MỚI: Tiền còn lại 100g (300g - 200g = 100g)
+            // SỬA GIÁ MỚI: Tiền còn lại 100g (600g - 500g = 100g)
             expect(Player_Stats.money).toBe(100);
         });
 
@@ -238,28 +238,28 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
         });
 
         test('BR-Shield-08: Không hồi máu khi không đủ tiền', () => {
-            Player_Stats.money = 30;   // Nhỏ hơn mức 200g mới
+            Player_Stats.money = 30;   // Nhỏ hơn mức 500g mới
             Player_Stats.hp    = 10;
 
             global.Shield.testHeal();
 
             expect(Player_Stats.money).toBe(30);
             expect(Player_Stats.hp).toBe(10);
-            // SỬA THÔNG BÁO: Mong đợi hệ thống báo thiếu '200g'
+            // SỬA THÔNG BÁO: Mong đợi hệ thống báo thiếu '500g'
             expect(UI_Manager.showError).toHaveBeenCalledWith(
-                expect.stringContaining('200g'),
+                expect.stringContaining('500g'),
                 '#e74c3c'
             );
         });
 
         test('BR-Shield-09: Không hồi máu khi HP đã đầy', () => {
-            Player_Stats.money = 200;
+            Player_Stats.money = 500;
             Player_Stats.hp    = 20;
             Player_Stats.maxHp = 20;
 
             global.Shield.testHeal();
 
-            expect(Player_Stats.money).toBe(200);
+            expect(Player_Stats.money).toBe(500);
             expect(Player_Stats.hp).toBe(20);
             expect(UI_Manager.showError).toHaveBeenCalledWith(
                 expect.stringContaining('đầy'),
@@ -524,7 +524,7 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
 
         test('BR-Shield-30: Hồi máu + mua khiên trong cùng một frame không xung đột state', () => {
             // SỬA TẠI ĐÂY: Cấp vốn ban đầu 500g để mua cả hai vật phẩm (200g + 200g = 400g)
-            Player_Stats.money  = 500;
+            Player_Stats.money  = 800;
             Player_Stats.hp     = 10;
             Player_Stats.shield = 0;
 
