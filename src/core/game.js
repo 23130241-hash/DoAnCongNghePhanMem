@@ -398,6 +398,8 @@ const Game_Manager = {
     enemies: [],
     projectiles: [],
     explosions: [],
+    // Hiệu ứng trực quan khi tháp được đặt thành công. Mỗi phần tử: {x,y,radius,maxRadius,alpha}
+    placementEffects: [],
 
     isPlaying: false,
     isGameOver: false,
@@ -434,6 +436,7 @@ const Game_Manager = {
         this.enemies = [];
         this.projectiles = [];
         this.explosions = [];
+        this.placementEffects = [];
 
         this.isPlaying = true;
         this.isGameOver = false;
@@ -515,6 +518,8 @@ const Game_Manager = {
          */
         UI_Manager.showError(`Đã xây ${towerConfig.name}`, "#2ecc71");
         UI_Manager.updateUI();
+        // Thêm hiệu ứng nhận biết: vòng nhòe/hiệu ứng tại vị trí vừa xây
+        this.placementEffects.push({ x: spotX, y: spotY, radius: 30, alpha: 1 });
         UI_Manager.clearSelected();
 
         return true;
@@ -645,6 +650,7 @@ const Game_Manager = {
             cancelAnimationFrame(this._rafId);
             this._rafId = null;
         }
+        this.placementEffects = [];
     },
 
     /* ------------------------------------------------------------------
@@ -727,12 +733,20 @@ const Game_Manager = {
         // 5. Kiểm tra quái chết
         this.checkEnemyDeath();
 
-        // 6. Hiệu ứng nổ (visual nhẹ)
+        // 6. Hiệu ứng nổ (hiệu ứng nhẹ)
         for (let i = this.explosions.length - 1; i >= 0; i--) {
             const ex = this.explosions[i];
             ex.radius += GAME_CONFIG.GAMEPLAY.explosionGrowthRate; 
             ex.alpha -= GAME_CONFIG.GAMEPLAY.explosionFadeRate;
             if (ex.alpha <= 0) this.explosions.splice(i, 1);
+        }
+
+        // 6.b Hiệu ứng đặt tháp (vòng nhòe phồng lên khi hoàn tất đặt tháp)
+        for (let i = this.placementEffects.length - 1; i >= 0; i--) {
+            const pe = this.placementEffects[i];
+            pe.radius += 6; // mở rộng nhanh
+            pe.alpha -= 0.08; // mờ dần
+            if (pe.alpha <= 0) this.placementEffects.splice(i, 1);
         }
 
         // ---- Victory check ----
@@ -1358,6 +1372,18 @@ const UI_Manager = {
             ctx.font = 'bold 12px Arial';
             ctx.fillText(tower.level, tower.x + 18, tower.y - 18);
 
+            ctx.restore();
+        });
+
+        // Hiệu ứng đặt tháp (phản hồi trực quan khi tháp vừa được đặt)
+        Game_Manager.placementEffects.forEach(pe => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(pe.x, pe.y, pe.radius, 0, Math.PI * 2);
+            ctx.globalAlpha = Math.max(0, pe.alpha);
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#2ecc71';
+            ctx.stroke();
             ctx.restore();
         });
 
