@@ -132,9 +132,48 @@ class Enemy {
 const Enemy_Manager = {
     get enemies() { return Game_Manager.enemies; },
 
-    /** [Sequence #2] Trả về danh sách enemy trong tầm bắn */
+    isTargetable(enemy) {
+        return !!enemy
+            && enemy.hp > 0
+            && this.enemies.includes(enemy);
+    },
+
+    getEnemyPath(enemy) {
+        const pathIndex = enemy && enemy.pathIndex !== undefined ? enemy.pathIndex : 0;
+        return Map_Grid.getPath(pathIndex);
+    },
+
+    getRemainingPathDistance(enemy) {
+        if (!enemy) return Number.POSITIVE_INFINITY;
+
+        const path = this.getEnemyPath(enemy);
+
+        if (!path || path.length === 0) return Number.POSITIVE_INFINITY;
+        if (enemy.node >= path.length) return 0;
+
+        let remaining = 0;
+        const nextPoint = path[enemy.node];
+
+        if (nextPoint) {
+            remaining += Math.hypot(enemy.x - nextPoint.x, enemy.y - nextPoint.y);
+        }
+
+        for (let i = enemy.node; i < path.length - 1; i++) {
+            remaining += Math.hypot(
+                path[i + 1].x - path[i].x,
+                path[i + 1].y - path[i].y
+            );
+        }
+
+        return remaining;
+    },
+
+    /** [Sequence #2] Trả về danh sách enemy hợp lệ trong tầm bắn */
     getEnemiesInRange(x, y, range) {
-        return this.enemies.filter(e => Math.hypot(e.x - x, e.y - y) <= range);
+        return this.enemies.filter(e =>
+            this.isTargetable(e) &&
+            Math.hypot(e.x - x, e.y - y) <= range
+        );
     },
 
     /** [Sequence #8] Xóa khỏi bản đồ */
@@ -273,6 +312,8 @@ class Tower {
         this.icon = stats.icon;
         this.attackType = def.attackType;
         this.explosionRadius = stats.explosionRadius || 0;
+        this.slowFactor = stats.slowFactor || 1; // slowFactor: hệ số tốc độ còn lại của enemy sau khi bị làm chậm.
+        this.slowDuration = stats.slowDuration || 0; // slowDuration: thời gian làm chậm, tính bằng mili-giây.
         if (this.totalSpent === 0) this.totalSpent = stats.cost;
     }
     canUpgrade() {
@@ -294,38 +335,78 @@ class Tower {
     }
 
     /** UC: Tháp tấn công kẻ thù - Cập nhật logic bắn của Tower */
-    update(dt) {
-        if (this.cooldownTimer > 0) {
-            this.cooldownTimer -= dt;
-            return;
-        }
+    /* ------------------------------------------------------------------
+ * [CẢI TIẾN — Nguyễn Thanh Phú | UC10 — Tháp tấn công kẻ thù]
+ * ------------------------------------------------------------------
+ * Vấn đề gốc:
+ *   Tower.update() lấy danh sách Enemy trong tầm bắn rồi chọn mục tiêu
+ *   theo thứ tự đầu tiên hoặc dựa nhiều vào enemy.node. Cách này chưa ổn
+ *   khi có nhiều Enemy trong tầm hoặc map có nhiều đường đi khác nhau.
+ *
+ *   Tower có thể bắn Enemy ở phía sau, trong khi Enemy gần căn cứ hơn
+ *   lại bị bỏ qua. Ngoài ra, logic chọn mục tiêu đặt trực tiếp trong
+ *   update() làm luồng sequence chưa rõ ràng.
+ *
+ * Giải pháp:
+ *   Tách logic chọn mục tiêu sang selectTarget(enemies).
+ *   Tower sẽ nhận danh sách Enemy hợp lệ từ Enemy_Manager, sau đó tính
+ *   khoảng cách còn lại từ từng Enemy tới căn cứ.
+ *
+ *   Enemy nào còn ít khoảng cách tới căn cứ hơn sẽ được ưu tiên tấn công.
+ *   Nếu nhiều Enemy có mức nguy hiểm ngang nhau thì ưu tiên Enemy ít máu
+ *   hơn để kết liễu nhanh hơn.
+ *
+ *   Luồng mới khớp sequence diagram:
+ *     Game_Loop → Tower.update()
+ *       → Enemy_Manager.getEnemiesInRange()
+ *         → lọc Enemy còn sống, còn tồn tại và nằm trong tầm bắn
+ *       → Tower.selectTarget()
+ *         → tính khoảng cách còn lại tới căn cứ
+ *         → chọn Enemy nguy hiểm nhất
+ *       → Projectile.create(target)
+ * ------------------------------------------------------------------*/
+    selectTarget(enemies) {
+        if (!enemies || enemies.length === 0) return null;
 
-        // [Sequence 10.1.2] Tower yêu cầu Enemy_Manager cung cấp danh sách kẻ địch trong tầm.
-        const inRange = Enemy_Manager.getEnemiesInRange(this.x, this.y, this.range);
+        return enemies.reduce((best, enemy) => {
+            if (!best) return enemy;
 
-        // [Sequence 10.1.3] Chọn mục tiêu dẫn đầu (đi xa nhất trên đường đi)
-        if (inRange.length > 0) {
-            let target = inRange[0];
-            for (let i = 1; i < inRange.length; i++) {
-                const enemy = inRange[i];
-                if (enemy.node > target.node) {
-                    target = enemy;
-                } 
-                else if (enemy.node === target.node) {
-                    const nextPoint = Map_Grid.path[enemy.node];
-                    if (nextPoint) {
-                        const distTarget = Math.hypot(target.x - nextPoint.x, target.y - nextPoint.y);
-                        const distEnemy = Math.hypot(enemy.x - nextPoint.x, enemy.y - nextPoint.y);
-                        if (distEnemy < distTarget) target = enemy;
-                    }
-                }
+            const bestRemaining = Enemy_Manager.getRemainingPathDistance(best);
+            const enemyRemaining = Enemy_Manager.getRemainingPathDistance(enemy);
+
+            if (enemyRemaining < bestRemaining) {
+                return enemy;
             }
 
-            // [Sequence 10.1.4] Khởi tạo Projectile (viên đạn) với tham số mục tiêu và sát thương.
-            Projectile.create(this, target);
-            this.cooldownTimer = this.cd; // Gán lại hồi chiêu
-        }
+            if (enemyRemaining === bestRemaining && enemy.hp < best.hp) {
+                return enemy;
+            }
+
+            return best;
+        }, null);
     }
+
+    /** UC: Tháp tấn công kẻ thù - Cập nhật logic bắn của Tower */
+    update(dt) {
+        if (this.cooldownTimer > 0) {
+            this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
+        }
+
+        if (this.cooldownTimer > 0) return;
+
+        // [Sequence 10.1.2] Tower yêu cầu Enemy_Manager cung cấp danh sách kẻ địch hợp lệ trong tầm.
+        const inRange = Enemy_Manager.getEnemiesInRange(this.x, this.y, this.range);
+
+        // [Sequence 10.1.3] Tower chọn Enemy nguy hiểm nhất để tấn công.
+        const target = this.selectTarget(inRange);
+
+        if (!target) return;
+
+        // [Sequence 10.1.4] Khởi tạo Projectile với mục tiêu đã chọn.
+        Projectile.create(this, target);
+        this.cooldownTimer = this.cd;
+    }
+
 }
 
 /** --------------------------------------------------------------------
@@ -340,6 +421,10 @@ class Projectile {
         this.color = tower.color;
         this.attackType = tower.attackType;
         this.expRad = tower.explosionRadius;
+        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ tháp phép.
+        // Khi attackType = 'magic', các chỉ số này sẽ được gắn vào enemy.
+        this.slowFactor = tower.slowFactor || 1;
+        this.slowDuration = tower.slowDuration || 0;
         this.speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
         this.angle = Math.atan2(target.y - this.y, target.x - this.x);
     }
@@ -351,16 +436,19 @@ class Projectile {
 
     /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.5] Cập nhật vị trí và va chạm của viên đạn */
     update() {
-        const targetGone = !this.target || this.target.hp <= 0
-            || Game_Manager.enemies.indexOf(this.target) === -1;
+        // UC10: Kiểm tra mục tiêu trước khi gây sát thương.
+        // Nếu Enemy đã chết hoặc bị xóa khỏi game, Projectile không gây damage sai.
+        const targetGone = !Enemy_Manager.isTargetable(this.target);
 
         if (targetGone) {
             this.x += Math.cos(this.angle) * (this.speed * 0.85);
             this.y += Math.sin(this.angle) * (this.speed * 0.85);
+
             if (this.x < 0 || this.x > GAME_CONFIG.GAMEPLAY.canvasWidth ||
                 this.y < 0 || this.y > GAME_CONFIG.GAMEPLAY.canvasHeight) {
                 return false;
             }
+
             return true;
         }
 
@@ -372,19 +460,36 @@ class Projectile {
         if (Math.hypot(this.target.x - this.x, this.target.y - this.y) < 15) {
             if (this.attackType === 'aoe') {
                 Game_Manager.explosions.push({
-                    x: this.x, y: this.y, radius: 0,
-                    maxRadius: this.expRad, alpha: 1
+                    x: this.x,
+                    y: this.y,
+                    radius: 0,
+                    maxRadius: this.expRad,
+                    alpha: 1
                 });
+
                 Game_Manager.enemies.forEach(e => {
-                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.expRad) {
-                        e.takeDamage(this.dmg); 
+                    if (Enemy_Manager.isTargetable(e) &&
+                        Math.hypot(e.x - this.x, e.y - this.y) < this.expRad) {
+                        e.takeDamage(this.dmg);
                     }
                 });
-            } else {
-                this.target.takeDamage(this.dmg); 
+            } else if (this.attackType === 'magic' && Enemy_Manager.isTargetable(this.target)) {
+                // [UC10 - Cải tiến] Đạn phép thuật:
+                // 1. Gây sát thương trực tiếp lên enemy.
+                // 2. Gắn hiệu ứng slow để làm giảm tốc độ di chuyển của enemy.
+                this.target.takeDamage(this.dmg);
+                this.target.effects.push({
+                    type: 'slow',
+                    factor: this.slowFactor,
+                    duration: this.slowDuration
+                });
+            } else if (Enemy_Manager.isTargetable(this.target)) {
+                this.target.takeDamage(this.dmg);
             }
+
             return false;
         }
+
         return true;
     }
 }
@@ -555,9 +660,14 @@ const Game_Manager = {
      * Cập nhật vị trí của tất cả kẻ thù trên bản đồ
      */
     updateEnemyPosition(enemy) {
-        const target = Map_Grid.path[enemy.node];
+        const path = Map_Grid.getPath(enemy.pathIndex || 0);
+        const target = path[enemy.node];
+
         if (!target) return;
-        const dx = target.x - enemy.x, dy = target.y - enemy.y;
+
+        const dx = target.x - enemy.x;
+        const dy = target.y - enemy.y;
+
         if (Math.hypot(dx, dy) < 5) {
             enemy.node++;
         } else {
@@ -572,11 +682,14 @@ const Game_Manager = {
      * Kiểm tra tọa độ kẻ thù so với vùng an toàn của căn cứ
      */
     checkBaseCollision(enemy) {
-        // Tới điểm cuối đường đi
-        if (enemy.node >= Map_Grid.path.length) return true;
-        // Hoặc lọt vào bán kính căn cứ
+        const path = Map_Grid.getPath(enemy.pathIndex || 0);
+
+        if (!path || path.length === 0) return false;
+        if (enemy.node >= path.length) return true;
+
         const base = Map_Grid.base;
         const hit = GAME_CONFIG.GAMEPLAY.baseHitRadius;
+
         return Math.hypot(base.x - enemy.x, base.y - enemy.y) < hit;
     },
 
