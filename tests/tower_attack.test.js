@@ -501,4 +501,41 @@ describe('UC10: Tower Attack — Tháp tấn công kẻ thù', () => {
             expect(result).toBe(false);
         });
     });
+    // ─────────────────────────────────────────────────────────────────────────
+    // NHÓM 5: Tháp phép thuật
+    // Kiểm tra tháp magic gây sát thương và thêm hiệu ứng làm chậm enemy
+    // ─────────────────────────────────────────────────────────────────────────
+    describe('Nhóm 5 — Tháp phép thuật', () => {
+
+        test('BR-Tower-15: Tháp phép thuật gây sát thương và làm chậm enemy', () => {
+            const target = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 40,
+                speed: 2,
+            });
+
+            Game_Manager.enemies = [target];
+
+            const tower = new Tower(90, 100, 'magic');
+            tower.dmg = 8;
+            tower.attackType = 'magic';
+            tower.slowFactor = 0.65;
+            tower.slowDuration = 1200;
+
+            const projectile = new Projectile(tower, target);
+            const stillAlive = projectile.update();
+
+            expect(stillAlive).toBe(false);
+            expect(target.takeDamage).toHaveBeenCalledWith(8);
+            expect(target.effects).toEqual([
+                {
+                    type: 'slow',
+                    factor: 0.65,
+                    duration: 1200
+                }
+            ]);
+        });
+
+    });
 });

@@ -312,6 +312,8 @@ class Tower {
         this.icon = stats.icon;
         this.attackType = def.attackType;
         this.explosionRadius = stats.explosionRadius || 0;
+        this.slowFactor = stats.slowFactor || 1; // slowFactor: hệ số tốc độ còn lại của enemy sau khi bị làm chậm.
+        this.slowDuration = stats.slowDuration || 0; // slowDuration: thời gian làm chậm, tính bằng mili-giây.
         if (this.totalSpent === 0) this.totalSpent = stats.cost;
     }
     canUpgrade() {
@@ -419,6 +421,10 @@ class Projectile {
         this.color = tower.color;
         this.attackType = tower.attackType;
         this.expRad = tower.explosionRadius;
+        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ tháp phép.
+        // Khi attackType = 'magic', các chỉ số này sẽ được gắn vào enemy.
+        this.slowFactor = tower.slowFactor || 1;
+        this.slowDuration = tower.slowDuration || 0;
         this.speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
         this.angle = Math.atan2(target.y - this.y, target.x - this.x);
     }
@@ -466,6 +472,16 @@ class Projectile {
                         Math.hypot(e.x - this.x, e.y - this.y) < this.expRad) {
                         e.takeDamage(this.dmg);
                     }
+                });
+            } else if (this.attackType === 'magic' && Enemy_Manager.isTargetable(this.target)) {
+                // [UC10 - Cải tiến] Đạn phép thuật:
+                // 1. Gây sát thương trực tiếp lên enemy.
+                // 2. Gắn hiệu ứng slow để làm giảm tốc độ di chuyển của enemy.
+                this.target.takeDamage(this.dmg);
+                this.target.effects.push({
+                    type: 'slow',
+                    factor: this.slowFactor,
+                    duration: this.slowDuration
                 });
             } else if (Enemy_Manager.isTargetable(this.target)) {
                 this.target.takeDamage(this.dmg);

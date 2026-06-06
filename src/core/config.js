@@ -190,10 +190,41 @@ const GAME_CONFIG = {
                 { lvl: 1, cost: 100, range: 100, dmg: 25, cd: 1500, explosionRadius: 50, icon: '💣' },
                 { lvl: 2, cost: 150, range: 120, dmg: 40, cd: 1400, explosionRadius: 65, icon: '💣' }
             ]
+        },
+        /* [UC10 - Cải tiến] Tháp Phép Thuật
+         * Bổ sung loại tháp mới để mở rộng chức năng "Tháp tấn công kẻ thù".
+         *
+         * Khác với:
+         *   - archer: bắn đơn mục tiêu
+         *   - cannon: gây sát thương diện rộng
+         *
+         * magic có cơ chế riêng:
+         *   - attackType: 'magic' để Projectile nhận biết đây là đạn phép
+         *   - gây sát thương trực tiếp lên enemy
+         *   - thêm hiệu ứng slow để làm chậm tốc độ di chuyển của enemy
+         *
+         * slowFactor:
+         *   - hệ số tốc độ còn lại của enemy sau khi bị làm chậm
+         *   - ví dụ 0.65 nghĩa là enemy chỉ còn 65% tốc độ ban đầu
+         *
+         * slowDuration:
+         *   - thời gian hiệu ứng làm chậm tồn tại, tính bằng mili-giây
+         *
+         * Mục đích:
+         *   - tăng chiến thuật phòng thủ
+         *   - giúp người chơi khống chế enemy nhanh hoặc tank
+         *   - hỗ trợ các tháp sát thương cao tiêu diệt enemy hiệu quả hơn
+         */
+        magic: {
+            name: "Tháp Phép Thuật",
+            color: '#9b59b6',
+            attackType: 'magic',
+            levels: [
+                { lvl: 1, cost: 80,  range: 130, dmg: 8,  cd: 900, slowFactor: 0.65, slowDuration: 1200, icon: '🔮' },
+                { lvl: 2, cost: 120, range: 150, dmg: 13, cd: 850, slowFactor: 0.55, slowDuration: 1500, icon: '🔮' },
+                { lvl: 3, cost: 180, range: 170, dmg: 20, cd: 800, slowFactor: 0.45, slowDuration: 1800, icon: '✨' }
+            ]
         }
-        // GỢI Ý mở rộng (BO-02): thêm "frost" — tháp làm chậm
-        // frost: { name:"Tháp Băng", color:'#1abc9c', attackType:'slow',
-        //   levels:[{lvl:1, cost:80, range:120, dmg:5, cd:900, slowFactor:0.5, slowDuration:1500, icon:'❄️'}] }
     },
 
     /* -----------------------------------------------------------------
