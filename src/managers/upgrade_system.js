@@ -32,19 +32,19 @@
  * ---------------------------------------------------------------- */
 const TOWER_SHOP_CATALOG = {
     /* ------------------------------------------------------------------
-         * [CẢI TIẾN — UC10: Tháp tấn công kẻ thù]
-         * ------------------------------------------------------------------
-         * Thay Tháp Băng bằng Tháp Độc vì Tháp Phép Thuật đã có hiệu ứng làm chậm.
-         *
-         * Vai trò của Tháp Độc:
-         *   - Là tháp mở khóa trong Xưởng Tháp.
-         *   - Gây sát thương ban đầu khi đạn trúng enemy.
-         *   - Gắn hiệu ứng poison để enemy tiếp tục mất máu theo thời gian.
-         *
-         * Lý do cải tiến:
-         *   - Tránh trùng chức năng với Tháp Phép Thuật.
-         *   - Tăng thêm chiến thuật cho use case "Tháp tấn công kẻ thù".
-         * ------------------------------------------------------------------ */
+       * [CẢI TIẾN — UC10: Tháp tấn công kẻ thù]
+       * ------------------------------------------------------------------
+       * Thay Tháp Băng bằng Tháp Độc vì Tháp Phép Thuật đã có hiệu ứng làm chậm.
+       *
+       * Vai trò của Tháp Độc:
+       *   - Là tháp mở khóa trong Xưởng Tháp.
+       *   - Gây sát thương ban đầu khi đạn trúng enemy.
+       *   - Gắn hiệu ứng poison để enemy tiếp tục mất máu theo thời gian.
+       *
+       * Lý do cải tiến:
+       *   - Tránh trùng chức năng với Tháp Phép Thuật.
+       *   - Tăng thêm chiến thuật cho use case "Tháp tấn công kẻ thù".
+       * ------------------------------------------------------------------ */
     poison: {
         name:        "Tháp Độc",
         description: "Bắn đạn độc vào kẻ thù, gây sát thương ban đầu và tiếp tục rút máu trong một khoảng thời gian.",

@@ -65,6 +65,13 @@ class Enemy {
     }
 
     /** Cập nhật hiệu ứng và tốc độ - Cần thiết cho logic Sub-stepping */
+    /* ------------------------------------------------------------------
+     * [CẢI TIẾN — UC10: Enemy nhận hiệu ứng từ tháp]
+     * ------------------------------------------------------------------
+     * Enemy có thể nhận hiệu ứng:
+     *   - slow   : giảm tốc độ di chuyển.
+     *   - poison : rút máu theo thời gian.
+     * ------------------------------------------------------------------ */
     updateEffects(dt) {
         let speedMultiplier = 1;
 
@@ -74,18 +81,19 @@ class Enemy {
 
             if (effect.duration <= 0) {
                 this.effects.splice(i, 1);
-            } else {
-                if (effect.type === 'slow') {
-                    speedMultiplier *= effect.factor;
-                }
+                continue;
+            }
 
-                if (effect.type === 'poison') {
-                    effect.tickTimer -= dt;
+            if (effect.type === 'slow') {
+                speedMultiplier *= effect.factor;
+            }
 
-                    if (effect.tickTimer <= 0) {
-                        this.takeDamage(effect.damage);
-                        effect.tickTimer = effect.tickInterval;
-                    }
+            if (effect.type === 'poison') {
+                effect.tickTimer -= dt;
+
+                if (effect.tickTimer <= 0) {
+                    this.takeDamage(effect.damage);
+                    effect.tickTimer = effect.tickInterval;
                 }
             }
         }
@@ -439,14 +447,15 @@ class Projectile {
         this.color = tower.color;
         this.attackType = tower.attackType;
         this.expRad = tower.explosionRadius;
-        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ tháp phép.
+        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ Tháp Phép Thuật.
         // Khi attackType = 'magic', các chỉ số này sẽ được gắn vào enemy.
         this.slowFactor = tower.slowFactor || 1;
         this.slowDuration = tower.slowDuration || 0;
-        this.slowFactor = tower.slowFactor || 1;
+
         // [UC10 - Cải tiến] Projectile lưu chỉ số độc từ Tháp Độc.
         // Khi attackType = 'poison', các chỉ số này sẽ được gắn vào enemy.
-        this.slowDuration = tower.slowDuration || 0;
+        this.poisonDmg = tower.poisonDmg || 0;
+        this.poisonDuration = tower.poisonDuration || 0;
         this.speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
         this.angle = Math.atan2(target.y - this.y, target.x - this.x);
     }

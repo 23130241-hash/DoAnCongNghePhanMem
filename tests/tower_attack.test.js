@@ -539,10 +539,10 @@ describe('UC10: Tower Attack — Tháp tấn công kẻ thù', () => {
 
     });
     // ─────────────────────────────────────────────────────────────────────────
-// NHÓM 6: Tháp Độc
-// Kiểm tra Projectile loại poison gây sát thương ban đầu
-// và gắn hiệu ứng rút máu theo thời gian cho enemy.
-// ─────────────────────────────────────────────────────────────────────────
+    // NHÓM 6: Tháp Độc
+    // Kiểm tra Projectile loại poison gây sát thương ban đầu
+    // và gắn hiệu ứng rút máu theo thời gian cho enemy.
+    // ─────────────────────────────────────────────────────────────────────────
     describe('Nhóm 6 — Tháp Độc', () => {
 
         test('BR-Tower-16: Tháp Độc gây sát thương ban đầu và gắn hiệu ứng poison cho enemy', () => {
