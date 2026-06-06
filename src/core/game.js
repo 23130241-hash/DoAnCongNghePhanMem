@@ -623,8 +623,8 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
          */
         UI_Manager.showError(`Đã xây ${towerConfig.name}`, "#2ecc71");
         UI_Manager.updateUI();
-        // Thêm hiệu ứng nhận biết: vòng nhòe/hiệu ứng tại vị trí vừa xây
-        this.placementEffects.push({ x: spotX, y: spotY, radius: 30, alpha: 1 });
+        // Thêm hiệu ứng nhận biết: vòng "sáng lên" và lan tỏa rồi biến mất
+        this.placementEffects.push({ x: spotX, y: spotY, radius: 20, alpha: 1, maxRadius: 70 });
         UI_Manager.clearSelected();
 
         return true;
@@ -805,10 +805,20 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
         if (!this.isPlaying || this.isPaused || this.isGameOver) return;
 
         // Chạy logic N lần dựa trên tốc độ game (Sub-stepping)
-        // Điều này đảm bảo mọi thứ nhanh hơn nhưng vẫn giữ nguyên độ chính xác vật lý
         for (let i = 0; i < this.gameSpeed; i++) {
             this._tickLogic(16.67);
             if (this.isGameOver || this.isVictory) break;
+        }
+    },
+
+    /** Cập nhật các hiệu ứng chỉ mang tính chất hiển thị (luôn chạy kể cả khi pause) */
+    _updateVisualOnly(dt) {
+        // Hiệu ứng đặt tháp (vòng nhòe phồng lên)
+        for (let i = this.placementEffects.length - 1; i >= 0; i--) {
+            const pe = this.placementEffects[i];
+            pe.radius += 6;   // Phình ra nhanh
+            pe.alpha -= 0.055; // Mờ dần vừa đủ nhìn thấy (~18 frame, ~0.3s)
+            if (pe.alpha <= 0) this.placementEffects.splice(i, 1);
         }
     },
 
@@ -852,14 +862,6 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
             ex.radius += GAME_CONFIG.GAMEPLAY.explosionGrowthRate; 
             ex.alpha -= GAME_CONFIG.GAMEPLAY.explosionFadeRate;
             if (ex.alpha <= 0) this.explosions.splice(i, 1);
-        }
-
-        // 6.b Hiệu ứng đặt tháp (vòng nhòe phồng lên khi hoàn tất đặt tháp)
-        for (let i = this.placementEffects.length - 1; i >= 0; i--) {
-            const pe = this.placementEffects[i];
-            pe.radius += 6; // mở rộng nhanh
-            pe.alpha -= 0.08; // mờ dần
-            if (pe.alpha <= 0) this.placementEffects.splice(i, 1);
         }
 
         // ---- Victory check ----
@@ -1371,6 +1373,9 @@ const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) 
 
     renderLoop() {
         Game_Manager.updateGameLoop();
+        // Luôn cập nhật hiệu ứng hình ảnh ở đây để đảm bảo chúng biến mất kể cả khi logic bị đứng hoặc bị patch
+        Game_Manager._updateVisualOnly(16.67); 
+        
         const ctx = this.ctx;
         const map = GAME_CONFIG.MAPS[Map_Grid.mapId];
         const W = this.canvas.width, H = this.canvas.height;
@@ -1488,15 +1493,27 @@ const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) 
             ctx.restore();
         });
 
-        // Hiệu ứng đặt tháp (phản hồi trực quan khi tháp vừa được đặt)
+        // Hiệu ứng đặt tháp (vòng tròn hào quang bùng nổ rồi tan biến ngay)
         Game_Manager.placementEffects.forEach(pe => {
             ctx.save();
             ctx.beginPath();
             ctx.arc(pe.x, pe.y, pe.radius, 0, Math.PI * 2);
+            
+            // Hiệu ứng sáng trắng rực rỡ (Flash Bloom) để cực kỳ nổi bật
             ctx.globalAlpha = Math.max(0, pe.alpha);
-            ctx.lineWidth = 4;
-            ctx.strokeStyle = '#2ecc71';
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 8;
             ctx.stroke();
+
+            // Vòng tròn phụ mờ để tạo độ sâu cho cú flash
+            ctx.beginPath();
+            ctx.arc(pe.x, pe.y, pe.radius * 0.5, 0, Math.PI * 2);
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = Math.max(0, pe.alpha * 0.5);
+            ctx.stroke();
+            
             ctx.restore();
         });
 
