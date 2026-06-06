@@ -10,7 +10,7 @@ let currentLevel = 1;
  * Save_Manager — Lưu/đọc localStorage (đáp ứng [BO-03] OFFLINE PLAY +
  * "Tiến trình lưu cục bộ" trong Non-Functional Requirements).
  * ------------------------------------------------------------------- */
-const Save_Manager = {
+const Save_Manager = (typeof globalThis !== 'undefined' && globalThis.Save_Manager) ? globalThis.Save_Manager : {
     key: "KINGDOM_DEFENSE_DATA",
     save() {
         try { localStorage.setItem(this.key, JSON.stringify(GAME_CONFIG.SAVE_DATA)); }
@@ -36,7 +36,7 @@ const Save_Manager = {
 // 1. MODEL — QUẢN LÝ DỮ LIỆU
 // =====================================================================
 
-const Player_Stats = {
+const Player_Stats = (typeof globalThis !== 'undefined' && globalThis.Player_Stats) ? globalThis.Player_Stats : {
     hp: 0, maxHp: 0, money: 0, wave: 0, maxWaves: 0,
 
     /** Khởi tạo lại theo level (gọi mỗi khi vào màn / chơi lại). */
@@ -129,7 +129,7 @@ class Enemy {
 /** --------------------------------------------------------------------
  * Enemy_Manager — Quản lý danh sách kẻ thù ([Sequence] Enemy_Manager)
  * ------------------------------------------------------------------ */
-const Enemy_Manager = {
+const Enemy_Manager = (typeof globalThis !== 'undefined' && globalThis.Enemy_Manager) ? globalThis.Enemy_Manager : {
     get enemies() { return Game_Manager.enemies; },
 
     isTargetable(enemy) {
@@ -182,7 +182,7 @@ const Enemy_Manager = {
     }
 };
 
-const Map_Grid = (typeof Map_Grid !== 'undefined') ? Map_Grid : {
+const Map_Grid = (typeof globalThis !== 'undefined' && globalThis.Map_Grid) ? globalThis.Map_Grid : {
     mapId: null,
     buildSpots: [],
     occupiedSpots: [],
@@ -498,7 +498,7 @@ class Projectile {
 // 2. CONTROLLER — XỬ LÝ LOGIC TRUNG TÂM
 // =====================================================================
 
-const Game_Manager = {
+const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manager) ? globalThis.Game_Manager : {
     towers: [],
     enemies: [],
     projectiles: [],
@@ -894,7 +894,7 @@ const Game_Manager = {
 // 3. VIEW — QUẢN LÝ GIAO DIỆN VÀ TƯƠNG TÁC NGƯỜI DÙNG
 // =====================================================================
 
-const UI_Manager = {
+const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) ? globalThis.UI_Manager : {
     canvas: null, ctx: null,
     selectedTowerSlot: null,
     interactTower: null,
