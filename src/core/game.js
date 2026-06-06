@@ -65,20 +65,41 @@ class Enemy {
     }
 
     /** Cập nhật hiệu ứng và tốc độ - Cần thiết cho logic Sub-stepping */
+    /* ------------------------------------------------------------------
+     * [CẢI TIẾN — UC10: Enemy nhận hiệu ứng từ tháp]
+     * ------------------------------------------------------------------
+     * Enemy có thể nhận hiệu ứng:
+     *   - slow   : giảm tốc độ di chuyển.
+     *   - poison : rút máu theo thời gian.
+     * ------------------------------------------------------------------ */
     updateEffects(dt) {
         let speedMultiplier = 1;
+
         for (let i = this.effects.length - 1; i >= 0; i--) {
             const effect = this.effects[i];
             effect.duration -= dt;
+
             if (effect.duration <= 0) {
                 this.effects.splice(i, 1);
-            } else {
-                if (effect.type === 'slow') speedMultiplier *= effect.factor;
+                continue;
+            }
+
+            if (effect.type === 'slow') {
+                speedMultiplier *= effect.factor;
+            }
+
+            if (effect.type === 'poison') {
+                effect.tickTimer -= dt;
+
+                if (effect.tickTimer <= 0) {
+                    this.takeDamage(effect.damage);
+                    effect.tickTimer = effect.tickInterval;
+                }
             }
         }
+
         this.speed = this.baseSpeed * speedMultiplier;
     }
-
     /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.7] Enemy phản hồi lượng máu còn lại */
     takeDamage(dmg) {
         this.hp -= dmg;
@@ -314,6 +335,11 @@ class Tower {
         this.explosionRadius = stats.explosionRadius || 0;
         this.slowFactor = stats.slowFactor || 1; // slowFactor: hệ số tốc độ còn lại của enemy sau khi bị làm chậm.
         this.slowDuration = stats.slowDuration || 0; // slowDuration: thời gian làm chậm, tính bằng mili-giây.
+        // [UC10 - Cải tiến] Chỉ số riêng cho Tháp Độc.
+        // poisonDmg: lượng máu enemy bị rút mỗi lần poison tick.
+        // poisonDuration: tổng thời gian hiệu ứng độc tồn tại trên enemy.
+        this.poisonDmg = stats.poisonDmg || 0;
+        this.poisonDuration = stats.poisonDuration || 0;
         if (this.totalSpent === 0) this.totalSpent = stats.cost;
     }
     canUpgrade() {
@@ -421,10 +447,15 @@ class Projectile {
         this.color = tower.color;
         this.attackType = tower.attackType;
         this.expRad = tower.explosionRadius;
-        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ tháp phép.
+        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ Tháp Phép Thuật.
         // Khi attackType = 'magic', các chỉ số này sẽ được gắn vào enemy.
         this.slowFactor = tower.slowFactor || 1;
         this.slowDuration = tower.slowDuration || 0;
+
+        // [UC10 - Cải tiến] Projectile lưu chỉ số độc từ Tháp Độc.
+        // Khi attackType = 'poison', các chỉ số này sẽ được gắn vào enemy.
+        this.poisonDmg = tower.poisonDmg || 0;
+        this.poisonDuration = tower.poisonDuration || 0;
         this.speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
         this.angle = Math.atan2(target.y - this.y, target.x - this.x);
     }
@@ -483,10 +514,32 @@ class Projectile {
                     factor: this.slowFactor,
                     duration: this.slowDuration
                 });
+
+            } else if (this.attackType === 'poison' && Enemy_Manager.isTargetable(this.target)) {
+                /* ------------------------------------------------------------------
+                 * [CẢI TIẾN — UC10: Tháp Độc tấn công kẻ thù]
+                 * ------------------------------------------------------------------
+                 * Khi Projectile của Tháp Độc chạm enemy:
+                 *   1. Enemy nhận sát thương ban đầu.
+                 *   2. Enemy bị gắn hiệu ứng poison.
+                 *   3. Enemy tiếp tục mất máu sau mỗi tickInterval.
+                 *
+                 * Cơ chế này khác Tháp Phép Thuật:
+                 *   - Magic: làm chậm enemy.
+                 *   - Poison: rút máu enemy theo thời gian.
+                 * ------------------------------------------------------------------ */
+                this.target.takeDamage(this.dmg);
+                this.target.effects.push({
+                    type: 'poison',
+                    damage: this.poisonDmg,
+                    duration: this.poisonDuration,
+                    tickInterval: 500,
+                    tickTimer: 500
+                });
+
             } else if (Enemy_Manager.isTargetable(this.target)) {
                 this.target.takeDamage(this.dmg);
             }
-
             return false;
         }
 

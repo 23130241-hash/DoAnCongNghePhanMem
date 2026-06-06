@@ -538,4 +538,88 @@ describe('UC10: Tower Attack — Tháp tấn công kẻ thù', () => {
         });
 
     });
+    // ─────────────────────────────────────────────────────────────────────────
+    // NHÓM 6: Tháp Độc
+    // Kiểm tra Projectile loại poison gây sát thương ban đầu
+    // và gắn hiệu ứng rút máu theo thời gian cho enemy.
+    // ─────────────────────────────────────────────────────────────────────────
+    describe('Nhóm 6 — Tháp Độc', () => {
+
+        test('BR-Tower-16: Tháp Độc gây sát thương ban đầu và gắn hiệu ứng poison cho enemy', () => {
+            const target = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 40,
+                speed: 2,
+            });
+
+            Game_Manager.enemies = [target];
+
+            const tower = new Tower(90, 100, 'archer');
+
+            // [UC10 - Cải tiến] Giả lập tower mới là Tháp Độc.
+            // Không dùng new Tower(..., 'poison') trực tiếp để tránh lỗi
+            // nếu poison chỉ được inject vào GAME_CONFIG sau khi mở khóa.
+            tower.dmg = 7;
+            tower.attackType = 'poison';
+            tower.poisonDmg = 2;
+            tower.poisonDuration = 1800;
+
+            const projectile = new Projectile(tower, target);
+            const stillAlive = projectile.update();
+
+            expect(stillAlive).toBe(false);
+
+            // Enemy nhận sát thương ban đầu khi đạn độc chạm mục tiêu.
+            expect(target.takeDamage).toHaveBeenCalledWith(7);
+            expect(target.hp).toBe(33);
+
+            // Enemy được gắn hiệu ứng poison để tiếp tục mất máu theo thời gian.
+            expect(target.effects).toEqual([
+                {
+                    type: 'poison',
+                    damage: 2,
+                    duration: 1800,
+                    tickInterval: 500,
+                    tickTimer: 500
+                }
+            ]);
+        });
+
+        test('BR-Tower-17: Hiệu ứng poison rút máu enemy theo thời gian', () => {
+            const target = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 40,
+                speed: 2,
+            });
+
+            Game_Manager.enemies = [target];
+
+            // [UC10 - Cải tiến] Gắn sẵn hiệu ứng poison vào enemy
+            // để kiểm tra Enemy.updateEffects(dt) xử lý rút máu đúng.
+            target.effects.push({
+                type: 'poison',
+                damage: 3,
+                duration: 1000,
+                tickInterval: 500,
+                tickTimer: 0
+            });
+
+            target.updateEffects(100);
+
+            // Vì tickTimer <= 0 nên enemy bị trừ máu 1 lần.
+            expect(target.takeDamage).toHaveBeenCalledWith(3);
+            expect(target.hp).toBe(37);
+
+            // Sau khi tick, timer được reset lại để chờ lần rút máu tiếp theo.
+            expect(target.effects[0].tickTimer).toBe(500);
+
+            target.updateEffects(900);
+
+            // Hết duration thì hiệu ứng poison bị xóa khỏi enemy.
+            expect(target.effects.length).toBe(0);
+        });
+
+    });
 });
