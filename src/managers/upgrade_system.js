@@ -31,16 +31,31 @@
  * Khi người chơi đủ sao và bấm mở khóa, chúng sẽ được inject vào.
  * ---------------------------------------------------------------- */
 const TOWER_SHOP_CATALOG = {
-    frost: {
-        name:        "Tháp Băng",
-        description: "Làm chậm kẻ thù trong phạm vi, tốt để hỗ trợ các tháp khác tiêu diệt dễ hơn.",
-        unlockCost:  5,       // ⭐ cần để mở khóa
-        icon:        '❄️',
-        color:       '#1abc9c',
-        attackType:  'aoe',   // dùng AOE có sẵn; slow sẽ là tính năng mở rộng sau
+    /* ------------------------------------------------------------------
+         * [CẢI TIẾN — UC10: Tháp tấn công kẻ thù]
+         * ------------------------------------------------------------------
+         * Thay Tháp Băng bằng Tháp Độc vì Tháp Phép Thuật đã có hiệu ứng làm chậm.
+         *
+         * Vai trò của Tháp Độc:
+         *   - Là tháp mở khóa trong Xưởng Tháp.
+         *   - Gây sát thương ban đầu khi đạn trúng enemy.
+         *   - Gắn hiệu ứng poison để enemy tiếp tục mất máu theo thời gian.
+         *
+         * Lý do cải tiến:
+         *   - Tránh trùng chức năng với Tháp Phép Thuật.
+         *   - Tăng thêm chiến thuật cho use case "Tháp tấn công kẻ thù".
+         * ------------------------------------------------------------------ */
+    poison: {
+        name:        "Tháp Độc",
+        description: "Bắn đạn độc vào kẻ thù, gây sát thương ban đầu và tiếp tục rút máu trong một khoảng thời gian.",
+        unlockCost:  5,
+        icon:        '☠️',
+        color:       '#2ecc71',
+        attackType:  'poison',
         levels: [
-            { lvl: 1, cost: 80,  range: 130, dmg: 6,  cd: 900, explosionRadius: 55, icon: '❄️' },
-            { lvl: 2, cost: 120, range: 150, dmg: 10, cd: 850, explosionRadius: 70, icon: '❄️' }
+            { lvl: 1, cost: 90,  range: 135, dmg: 7,  cd: 950, poisonDmg: 2, poisonDuration: 1800, icon: '☠️' },
+            { lvl: 2, cost: 135, range: 155, dmg: 11, cd: 900, poisonDmg: 3, poisonDuration: 2200, icon: '☠️' },
+            { lvl: 3, cost: 200, range: 175, dmg: 16, cd: 850, poisonDmg: 4, poisonDuration: 2600, icon: '🧪' }
         ]
     },
     sniper: {
