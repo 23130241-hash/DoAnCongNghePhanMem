@@ -131,10 +131,10 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// UC12 — SHIELD SYSTEM TEST SUITE
+// UC11 — SHIELD SYSTEM TEST SUITE
 // =============================================================================
 
-describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => {
+describe('UC11: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => {
 
     // ─────────────────────────────────────────────────────────────────────────
     // NHÓM 1: MUA KHIÊN (_onBuyShield) - GIÁ MỚI 200G
@@ -142,12 +142,12 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
     describe('Nhóm 1 — Mua Khiên (🛡️ Buy Shield)', () => {
 
         test('BR-Shield-01: Mua khiên thành công khi đủ tiền', () => {
-            Player_Stats.money  = 300;
+            Player_Stats.money  = 600;
             Player_Stats.shield = 0;
 
             global.Shield.testBuyShield();
 
-            // SỬA GIÁ MỚI: Tiền giảm đúng 200g (300g - 200g = 100g)
+            // SỬA GIÁ MỚI: Tiền giảm đúng 500g (600g - 500g = 100g)
             expect(Player_Stats.money).toBe(100);
             expect(Player_Stats.shield).toBe(10);
             expect(UI_Manager.updateUI).toHaveBeenCalled();
@@ -155,27 +155,27 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
         });
 
         test('BR-Shield-02: Không mua được khiên khi không đủ tiền', () => {
-            Player_Stats.money  = 50;   // Nhỏ hơn giá mới 200g
+            Player_Stats.money  = 50;   // Nhỏ hơn giá mới 500g
             Player_Stats.shield = 0;
 
             global.Shield.testBuyShield();
 
             expect(Player_Stats.money).toBe(50);
             expect(Player_Stats.shield).toBe(0);
-            // SỬA THÔNG BÁO: Mong đợi chuỗi chứa '200g' thay vì '75g'
+            // SỬA THÔNG BÁO: Mong đợi chuỗi chứa '500g'
             expect(UI_Manager.showError).toHaveBeenCalledWith(
-                expect.stringContaining('200g'),
+                expect.stringContaining('500g'),
                 '#e74c3c'
             );
         });
 
         test('BR-Shield-03: Không mua được khiên khi đã đạt MAX_SHIELD (50)', () => {
-            Player_Stats.money  = 300;
+            Player_Stats.money  = 600;
             Player_Stats.shield = 50;
 
             global.Shield.testBuyShield();
 
-            expect(Player_Stats.money).toBe(300);
+            expect(Player_Stats.money).toBe(600);
             expect(Player_Stats.shield).toBe(50);
             expect(UI_Manager.showError).toHaveBeenCalledWith(
                 expect.stringContaining('đầy'),
@@ -190,8 +190,8 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
             global.Shield.testBuyShield(); // +10 → cap tại 50
 
             expect(Player_Stats.shield).toBe(50);
-            // SỬA GIÁ MỚI: Trừ đúng 200g (1000g - 200g = 800g)
-            expect(Player_Stats.money).toBe(800);
+            // SỬA GIÁ MỚI: Trừ đúng 500g (1000g - 500 = 500)
+            expect(Player_Stats.money).toBe(500);
         });
     });
 
@@ -505,33 +505,33 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // NHÓM 7: EDGE CASES (TÍCH LŨY KHI GIÁ MỚI LÀ 200G)
+    // NHÓM 7: EDGE CASES (TÍCH LŨY KHI GIÁ MỚI LÀ 500g)
     // ─────────────────────────────────────────────────────────────────────────
     describe('Nhóm 7 — Edge Cases & Boundary', () => {
 
         test('BR-Shield-29: Mua nhiều lần khiên đúng tích lũy (mua 3 lần)', () => {
-            // SỬA TẠI ĐÂY: Nâng tiền gốc lên 700g để đủ thực hiện 3 lượt mua (3 * 200g = 600g)
-            Player_Stats.money  = 700;
+            // SỬA TẠI ĐÂY: Nâng tiền gốc lên 700g để đủ thực hiện 3 lượt mua (3 * 500g = 600g)
+            Player_Stats.money  = 1600;
             Player_Stats.shield = 0;
 
-            global.Shield.testBuyShield(); // +10 shield, -200g → shield=10, money=500
-            global.Shield.testBuyShield(); // +10 shield, -200g → shield=20, money=300
-            global.Shield.testBuyShield(); // +10 shield, -200g → shield=30, money=100
+            global.Shield.testBuyShield(); // +10 shield, -500g → shield=10, money=1100
+            global.Shield.testBuyShield(); // +10 shield, -500g → shield=20, money=600
+            global.Shield.testBuyShield(); // +10 shield, -500g → shield=30, money=100
 
             expect(Player_Stats.shield).toBe(30);
             expect(Player_Stats.money).toBe(100);
         });
 
         test('BR-Shield-30: Hồi máu + mua khiên trong cùng một frame không xung đột state', () => {
-            // SỬA TẠI ĐÂY: Cấp vốn ban đầu 500g để mua cả hai vật phẩm (200g + 200g = 400g)
-            Player_Stats.money  = 800;
+            // SỬA TẠI ĐÂY: Cấp vốn ban đầu 1100g để mua cả hai vật phẩm (500g + 500g = 400g)
+            Player_Stats.money  = 1100;
             Player_Stats.hp     = 10;
             Player_Stats.shield = 0;
 
-            global.Shield.testHeal();       // -200g, +15 HP (đạt max 20)
-            global.Shield.testBuyShield();  // -200g, +10 shield
+            global.Shield.testHeal();       // -500g, +15 HP (đạt max 20)
+            global.Shield.testBuyShield();  // -500g, +10 shield
 
-            // SỬA GIÁ MỚI: Tiền còn lại là 100g (500g - 200g - 200g = 100g)
+            // SỬA GIÁ MỚI: Tiền còn lại là 100g (1100g - 500g - 500g = 100g)
             expect(Player_Stats.money).toBe(100);
             expect(Player_Stats.hp).toBe(20);
             expect(Player_Stats.shield).toBe(10);

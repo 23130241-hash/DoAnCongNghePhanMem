@@ -2,7 +2,7 @@
  * 📄 shield_system.js — CƠ CHẾ KHIÊN NĂNG LƯỢNG (Base Shield Mechanics)
  * ---------------------------------------------------------------------
  * Use Case  : UC11 — Khiên bảo vệ Căn cứ
- * Phiên bản : v2.0 — Fix toàn bộ bug gold/cooldown/heal
+ * Phiên bản : v2.1 — showHealEffect flash toàn màn hình (giống flashScreenRed)
  *
  * BUG ĐÃ SỬA (v1 → v2):
  *   [BUG 1] Không mua được shield dù đủ tiền
@@ -29,6 +29,13 @@
  *     NGUYÊN NHÂN: Patch Game_Manager.startGame() không tồn tại.
  *     SỬA: Patch Game_Manager.startLevel() — hàm thực sự được gọi.
  *
+ * THAY ĐỔI (v2 → v2.1):
+ *   [UPDATE] showHealEffect dùng outline pulse trên HP box
+ *     SỬA: Flash viền XANH LÁ toàn màn hình qua flash-overlay,
+ *          giống pattern flashScreenRed/flashScreenBlue của UC11.
+ *     THÊM: FLASH_HEAL_MS vào SHIELD_CONFIG (600ms — dài hơn blue vì tích cực).
+ *     GỌI: UI_Manager.showHealEffect() trong _onBuyHeal() sau updateHPDisplay.
+ *
  * ===================================================================== */
 
 (function () {
@@ -38,15 +45,16 @@
      * CẤU HÌNH MODULE
      * ================================================================ */
     const SHIELD_CONFIG = {
-        SHIELD_BUY_COST   : 200,      // Gold mua 1 lần khiên trong game
-        SHIELD_BUY_AMOUNT : 10,      // Shield điểm nhận được mỗi lần mua
+        SHIELD_BUY_COST   : 500,      // Gold mua 1 lần khiên trong game
+        SHIELD_BUY_AMOUNT : 10,       // Shield điểm nhận được mỗi lần mua
         HEAL_BUY_COST     : 500,      // Gold mua 1 lần hồi máu
-        HEAL_AMOUNT       : 10,      // HP hồi lại mỗi lần mua (đúng đặc tả: +15)
-        BLAST_COOLDOWN_MS : 45000,   // 30 giây cooldown kỹ năng Xung Phá
-        BLAST_RADIUS      : 150,     // Bán kính tiêu diệt quái (px)
-        MAX_SHIELD        : 50,      // Shield tối đa
-        FLASH_BLUE_MS     : 500,     // Thời gian nháy xanh (ms)
-        SHIELD_BREAK_MS   : 800,     // Thời gian hiệu ứng vỡ khiên
+        HEAL_AMOUNT       : 10,       // HP hồi lại mỗi lần mua
+        BLAST_COOLDOWN_MS : 45000,    // 45 giây cooldown kỹ năng Xung Phá
+        BLAST_RADIUS      : 150,      // Bán kính tiêu diệt quái (px)
+        MAX_SHIELD        : 50,       // Shield tối đa
+        FLASH_BLUE_MS     : 500,      // Thời gian fade flash xanh dương (ms)
+        FLASH_HEAL_MS     : 600,      // Thời gian fade flash xanh lá heal (ms)
+        SHIELD_BREAK_MS   : 800,      // Thời gian hiệu ứng vỡ khiên
     };
 
     /* ==================================================================
@@ -144,24 +152,23 @@
         if (buyBtn) {
             const canBuy = Player_Stats.checkMoney(SHIELD_CONFIG.SHIELD_BUY_COST)
                 && (Player_Stats.shield || 0) < SHIELD_CONFIG.MAX_SHIELD;
-            buyBtn.disabled    = !canBuy;
+            buyBtn.disabled      = !canBuy;
             buyBtn.style.opacity = canBuy ? '1' : '0.5';
         }
     };
 
     /**
      * flashScreenBlue()
-     * Nháy viền XANH khi khiên hấp thụ damage.
+     * Nháy viền XANH DƯƠNG khi khiên hấp thụ damage.
      * Không dùng class CSS (để không xung đột với flash-active của UC11).
      */
     UI_Manager.flashScreenBlue = function () {
         const el = document.getElementById('flash-overlay');
         if (!el) return;
 
-        // Override màu nền tạm thời sang xanh
-        el.style.background  = 'radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(52,152,219,0.7) 100%)';
-        el.style.opacity     = '1';
-        el.style.transition  = 'none';
+        el.style.background = 'radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(52,152,219,0.7) 100%)';
+        el.style.opacity    = '1';
+        el.style.transition = 'none';
 
         clearTimeout(this._flashBlueTimer);
         this._flashBlueTimer = setTimeout(() => {
@@ -170,6 +177,34 @@
             // Restore màu đỏ gốc sau khi fade xong
             setTimeout(() => { el.style.background = ''; }, SHIELD_CONFIG.FLASH_BLUE_MS);
         }, 100);
+    };
+
+    /**
+     * showHealEffect()
+     * Flash viền XANH LÁ toàn màn hình khi hồi máu.
+     * Dùng flash-overlay giống flashScreenRed (UC11) / flashScreenBlue —
+     * không dùng outline pulse trên HP box nữa.
+     *
+     * Tại sao hold 120ms (không phải 100ms như blue)?
+     *   → Heal là hành động chủ động của người chơi, hold thêm 20ms
+     *     cho cảm giác "dễ chịu" hơn, không bị chớp tắt quá nhanh.
+     * Tại sao fade 600ms (dài hơn blue 500ms)?
+     *   → Heal mang cảm giác tích cực / ấm áp → lưu lại lâu hơn flash combat.
+     */
+    UI_Manager.showHealEffect = function () {
+        const el = document.getElementById('flash-overlay');
+        if (!el) return;
+
+        el.style.background = 'radial-gradient(ellipse at center, rgba(0,0,0,0) 30%, rgba(46,204,113,0.65) 100%)';
+        el.style.opacity    = '1';
+        el.style.transition = 'none';
+
+        clearTimeout(this._flashHealTimer);
+        this._flashHealTimer = setTimeout(() => {
+            el.style.transition = `opacity ${SHIELD_CONFIG.FLASH_HEAL_MS}ms ease`;
+            el.style.opacity    = '0';
+            setTimeout(() => { el.style.background = ''; }, SHIELD_CONFIG.FLASH_HEAL_MS);
+        }, 120);
     };
 
     /**
@@ -199,7 +234,7 @@
             document.getElementById('game-container')?.appendChild(el);
         }
 
-        el.innerHTML  = '💥 KHIÊN VỠ!';
+        el.innerHTML        = '💥 KHIÊN VỠ!';
         el.style.transition = 'none';
         el.style.opacity    = '1';
         el.style.transform  = 'translate(-50%, -50%) scale(1.2)';
@@ -213,18 +248,6 @@
         this._shieldBreakTimer = setTimeout(() => {
             el.style.opacity = '0';
         }, 350);
-    };
-    /**
-     * showHealEffect()
-     * Pulse viền xanh lá cho HP stat-box khi hồi máu.
-     */
-    UI_Manager.showHealEffect = function () {
-        const hpBox = document.querySelector('#top-bar .stat-box.hp');
-        if (!hpBox) return;
-        hpBox.classList.remove('hp-heal-pulse');
-        void hpBox.offsetWidth;
-        hpBox.classList.add('hp-heal-pulse');
-        setTimeout(() => hpBox.classList.remove('hp-heal-pulse'), 2500);
     };
 
     /**
@@ -290,9 +313,10 @@
     }
 
     /**
-     * [BUG 2 FIX] ❤️ Hồi Máu
+     * ❤️ Hồi Máu
      * Dùng Player_Stats.deductMoney() thay vì Player_Stats.gold -=.
      * Dùng UI_Manager.updateUI() thay vì updateGoldDisplay() (không tồn tại).
+     * [v2.1] Gọi UI_Manager.showHealEffect() — flash xanh lá toàn màn hình.
      */
     function _onBuyHeal() {
         const cost = SHIELD_CONFIG.HEAL_BUY_COST;
@@ -312,7 +336,7 @@
 
         UI_Manager.updateUI();                                       // FIX: sync Gold trên HUD
         UI_Manager.updateHPDisplay(Player_Stats.hp);
-        UI_Manager.showHealEffect();
+        UI_Manager.showHealEffect();                                 // v2.1: flash xanh lá toàn màn
         UI_Manager.showError(`❤️ Hồi +${healed} HP!`, '#2ecc71');
 
         console.log(
@@ -371,7 +395,7 @@
         const btn = document.getElementById('blast-btn');
         if (!btn) return;
 
-        btn.disabled     = true;
+        btn.disabled      = true;
         btn.style.opacity = '0.4';
 
         let remaining = Math.ceil(durationMs / 1000);
@@ -387,9 +411,9 @@
             if (remaining <= 0) {
                 clearInterval(btn._cooldownInterval);
                 btn._cooldownInterval = null;
-                btn.disabled     = false;
+                btn.disabled      = false;
                 btn.style.opacity = '1';
-                btn.innerHTML    = `⚡ <span style="font-size:11px;line-height:1.3">Xung<br>Phá</span>`;
+                btn.innerHTML     = `⚡ <span style="font-size:11px;line-height:1.3">Xung<br>Phá</span>`;
             } else {
                 btn.innerHTML = `⏳ <span style="font-size:11px;line-height:1.3">${remaining}s</span>`;
             }
@@ -409,14 +433,14 @@
         btn.innerHTML     = `⚡ <span style="font-size:11px;line-height:1.3">Xung<br>Phá</span>`;
     }
 
-    /** Pulse viền xanh của shield stat box khi bị trừ */
+    /** Pulse viền xanh dương của shield stat box khi bị trừ */
     function _pulseShieldBox() {
         const box = document.getElementById('shield-stat-box');
         if (!box) return;
         box.classList.remove('shield-hit');
         void box.offsetWidth;
         box.classList.add('shield-hit');
-        setTimeout(() => box.classList.remove('shield-hit'), 450);
+        setTimeout(() => box.classList.remove('shield-hit'), 500);
     }
 
     /* ==================================================================
@@ -488,21 +512,12 @@
         s.id = 'shield-system-styles';
         s.textContent = `
             #shield-stat-box.shield-hit {
-                animation: shieldAbsorb 0.45s ease forwards;
+                animation: shieldAbsorb 0.45s ease;
             }
             @keyframes shieldAbsorb {
-                0%   { outline: 2px solid rgba(52,152,219,0);   outline-offset: 0px; }
-                30%  { outline: 3px solid rgba(52,152,219,0.9); outline-offset: 3px; }
-                100% { outline: 2px solid rgba(52,152,219,0);   outline-offset: 0px; }
-            }
-            .hp-heal-pulse {
-                animation: hpHealPulse 2.5s ease forwards;
-            }
-            @keyframes hpHealPulse {
-                0%   { outline: 2px solid rgba(46,204,113,0);   outline-offset: 0px; }
-                20%  { outline: 3px solid rgba(46,204,113,0.9); outline-offset: 4px; }
-                70%  { outline: 3px solid rgba(46,204,113,0.5); outline-offset: 2px; }
-                100% { outline: 2px solid rgba(46,204,113,0);   outline-offset: 0px; }
+                0%   { box-shadow: 0 0 0 #3498db; }
+                40%  { box-shadow: 0 0 20px 8px #3498db; }
+                100% { box-shadow: 0 0 0 #3498db; }
             }
             #shield-action-bar button:hover:not(:disabled) {
                 transform: translateY(-2px);
@@ -551,7 +566,7 @@
             errs.forEach(e => console.error('[Shield]  ✗', e));
         } else {
             console.log(
-                '[Shield] v2.0 tích hợp thành công.\n' +
+                '[Shield] v2.1 tích hợp thành công.\n' +
                 `         Shield: ${SHIELD_CONFIG.SHIELD_BUY_COST}g → +${SHIELD_CONFIG.SHIELD_BUY_AMOUNT} | ` +
                 `Heal: ${SHIELD_CONFIG.HEAL_BUY_COST}g → +${SHIELD_CONFIG.HEAL_AMOUNT}HP | ` +
                 `Blast CD: ${SHIELD_CONFIG.BLAST_COOLDOWN_MS / 1000}s`
@@ -581,9 +596,9 @@
                 Game_Manager.reduceBaseHP(cfg.damage);
                 setTimeout(() => console.log(`[Shield.debug] → shield_after=${Player_Stats.shield}, hp_after=${Player_Stats.hp}`), 250);
             },
-            testBlast() { _onBlast(); },
-            testHeal()  { _onBuyHeal(); },
-            testBuyShield() { _onBuyShield(); }
+            testBlast()      { _onBlast(); },
+            testHeal()       { _onBuyHeal(); },
+            testBuyShield()  { _onBuyShield(); },
         };
         console.log('[Shield] Debug: Shield.addShield(n) | Shield.testAbsorb(type) | Shield.testBlast()');
     }
