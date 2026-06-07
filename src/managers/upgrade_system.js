@@ -310,6 +310,11 @@ const Upgrade_System = {
 
         // 22.1.3 — Trừ sao + đánh dấu unlocked
         GAME_CONFIG.SAVE_DATA.totalStars -= cost;
+
+        if (!GAME_CONFIG.SAVE_DATA.unlockedUpgrades) {
+            GAME_CONFIG.SAVE_DATA.unlockedUpgrades = [];
+        }
+
         if (!GAME_CONFIG.SAVE_DATA.unlockedUpgrades.includes(type)) {
             GAME_CONFIG.SAVE_DATA.unlockedUpgrades.push(type);
         }
@@ -349,6 +354,11 @@ const Upgrade_System = {
         // 23.1.2 — Trừ sao + thêm level vào config
         GAME_CONFIG.SAVE_DATA.totalStars -= cost;
         const evolveKey = `evolved_${type}`;
+
+        if (!GAME_CONFIG.SAVE_DATA.unlockedUpgrades) {
+            GAME_CONFIG.SAVE_DATA.unlockedUpgrades = [];
+        }
+
         if (!GAME_CONFIG.SAVE_DATA.unlockedUpgrades.includes(evolveKey)) {
             GAME_CONFIG.SAVE_DATA.unlockedUpgrades.push(evolveKey);
         }
@@ -370,39 +380,72 @@ const Upgrade_System = {
     },
 
     /* ----------------------------------------------------------------
-     * applyUnlockedSlots — gọi trước enterGame để active các slot đã mở
-     * ---------------------------------------------------------------- */
+ * applyUnlockedSlots — gọi trước enterGame để active các slot đã mở
+ * ---------------------------------------------------------------- */
     applyUnlockedSlots() {
-        const unlocked = (GAME_CONFIG.SAVE_DATA.unlockedUpgrades || [])
-            .filter(k => !k.startsWith('evolved_') && TOWER_SHOP_CATALOG[k]);
-        if (unlocked.length === 0) return;
+        const baseTowerTypes = ['archer', 'cannon', 'magic'];
 
-        const lockedSlots = document.querySelectorAll('#tower-slots .slot.locked');
-        unlocked.forEach((type, idx) => {
-            const slot = lockedSlots[idx];
-            if (!slot) return;
+        const unlocked = [...new Set(
+            (GAME_CONFIG.SAVE_DATA.unlockedUpgrades || [])
+                .filter(k => !k.startsWith('evolved_') && TOWER_SHOP_CATALOG[k])
+        )];
+
+        const slots = Array.from(document.querySelectorAll('#tower-slots .slot'));
+
+        slots.forEach(slot => {
+            const type = slot.dataset.type;
+
+            if (baseTowerTypes.includes(type)) return;
+
+            slot.classList.remove('active', 'selected', 'disabled');
+            slot.classList.add('locked');
+
+            delete slot.dataset.type;
+            delete slot.dataset.cost;
+
+            const iconEl = slot.querySelector('.icon');
+            const costEl = slot.querySelector('.cost');
+
+            if (iconEl) iconEl.innerText = '🔒';
+            if (costEl) costEl.innerText = '---';
+
+            slot.onclick = null;
+        });
+
+        unlocked.forEach(type => {
             const tData = TOWER_SHOP_CATALOG[type];
-            // Activate slot
+            if (!tData) return;
+
+            if (!GAME_CONFIG.TOWERS[type]) {
+                GAME_CONFIG.TOWERS[type] = {
+                    name: tData.name,
+                    color: tData.color,
+                    attackType: tData.attackType,
+                    levels: tData.levels
+                };
+            }
+
+            const slot = document.querySelector('#tower-slots .slot.locked');
+            if (!slot) return;
+
             slot.classList.remove('locked');
             slot.classList.add('active');
+
             slot.dataset.type = type;
             slot.dataset.cost = tData.levels[0].cost;
-            slot.querySelector('.icon').innerText = tData.icon;
-            slot.querySelector('.cost').innerText = `${tData.levels[0].cost}g`;
 
-            // Bind click (UI_Manager._bindTowerSlots không cover slot mới)
-            slot.onclick = () => {
-                if (!slot.classList.contains('active')) return;
-                document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
-                slot.classList.add('selected');
-                UI_Manager.selectedTowerSlot = {
-                    type: slot.dataset.type,
-                    cost: parseInt(slot.dataset.cost)
-                };
-            };
+            const iconEl = slot.querySelector('.icon');
+            const costEl = slot.querySelector('.cost');
+
+            if (iconEl) iconEl.innerText = tData.icon;
+            if (costEl) costEl.innerText = `${tData.levels[0].cost}g`;
         });
-    },
 
+        if (typeof UI_Manager !== 'undefined') {
+            UI_Manager.clearSelected();
+            UI_Manager._bindTowerSlots();
+        }
+    },
     /* ----------------------------------------------------------------
      * Helpers
      * -------------------------------------------------------------- */
