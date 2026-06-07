@@ -142,12 +142,12 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
     describe('Nhóm 1 — Mua Khiên (🛡️ Buy Shield)', () => {
 
         test('BR-Shield-01: Mua khiên thành công khi đủ tiền', () => {
-            Player_Stats.money  = 300;
+            Player_Stats.money  = 600;
             Player_Stats.shield = 0;
 
             global.Shield.testBuyShield();
 
-            // SỬA GIÁ MỚI: Tiền giảm đúng 200g (300g - 200g = 100g)
+            // SỬA GIÁ MỚI: Tiền giảm đúng 500g (600g - 500g = 100g)
             expect(Player_Stats.money).toBe(100);
             expect(Player_Stats.shield).toBe(10);
             expect(UI_Manager.updateUI).toHaveBeenCalled();
@@ -155,27 +155,27 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
         });
 
         test('BR-Shield-02: Không mua được khiên khi không đủ tiền', () => {
-            Player_Stats.money  = 50;   // Nhỏ hơn giá mới 200g
+            Player_Stats.money  = 50;   // Nhỏ hơn giá mới 500g
             Player_Stats.shield = 0;
 
             global.Shield.testBuyShield();
 
             expect(Player_Stats.money).toBe(50);
             expect(Player_Stats.shield).toBe(0);
-            // SỬA THÔNG BÁO: Mong đợi chuỗi chứa '200g' thay vì '75g'
+            // SỬA THÔNG BÁO: Mong đợi chuỗi chứa '500g'
             expect(UI_Manager.showError).toHaveBeenCalledWith(
-                expect.stringContaining('200g'),
+                expect.stringContaining('500g'),
                 '#e74c3c'
             );
         });
 
         test('BR-Shield-03: Không mua được khiên khi đã đạt MAX_SHIELD (50)', () => {
-            Player_Stats.money  = 300;
+            Player_Stats.money  = 600;
             Player_Stats.shield = 50;
 
             global.Shield.testBuyShield();
 
-            expect(Player_Stats.money).toBe(300);
+            expect(Player_Stats.money).toBe(600);
             expect(Player_Stats.shield).toBe(50);
             expect(UI_Manager.showError).toHaveBeenCalledWith(
                 expect.stringContaining('đầy'),
@@ -190,8 +190,8 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
             global.Shield.testBuyShield(); // +10 → cap tại 50
 
             expect(Player_Stats.shield).toBe(50);
-            // SỬA GIÁ MỚI: Trừ đúng 200g (1000g - 200g = 800g)
-            expect(Player_Stats.money).toBe(800);
+            // SỬA GIÁ MỚI: Trừ đúng 500g (1000g - 500 = 500)
+            expect(Player_Stats.money).toBe(500);
         });
     });
 
