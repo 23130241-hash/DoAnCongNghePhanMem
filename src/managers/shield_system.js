@@ -45,7 +45,7 @@
      * CẤU HÌNH MODULE
      * ================================================================ */
     const SHIELD_CONFIG = {
-        SHIELD_BUY_COST   : 200,      // Gold mua 1 lần khiên trong game
+        SHIELD_BUY_COST   : 500,      // Gold mua 1 lần khiên trong game
         SHIELD_BUY_AMOUNT : 10,       // Shield điểm nhận được mỗi lần mua
         HEAL_BUY_COST     : 500,      // Gold mua 1 lần hồi máu
         HEAL_AMOUNT       : 10,       // HP hồi lại mỗi lần mua
