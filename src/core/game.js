@@ -100,20 +100,19 @@ class Enemy {
 
         this.speed = this.baseSpeed * speedMultiplier;
     }
-    /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.7] Enemy phản hồi lượng máu còn lại */
+    /** UC10.1 - [Sequence 10.1.19] Enemy nhận sát thương từ Projectile */
     takeDamage(dmg) {
         this.hp -= dmg;
         return this.hp;
     }
 
-    /** UC: Tháp tấn công kẻ thù - Xử lý khi kẻ địch bị tiêu diệt
-     *  [Sequence 10.2.7.1] Enemy gọi onDeath() báo Enemy_Manager xóa khỏi bản đồ.
-     *  [Sequence 10.2.7.2] Hệ thống tự động cộng vàng thưởng cho Player.
-     */
+    /** UC10.1 - [Sequence 10.1.25] Enemy thông báo trạng thái bị tiêu diệt */
     onDeath() {
-        Enemy_Manager.onDeath(this);
-        Player_Stats.addGold(this.reward);
+        return {
+            reward: this.reward
+        };
     }
+
 
     /* ------------------------------------------------------------------
      * [CẢI TIẾN — Nguyễn Lê Tiến Đạt | UC11 — step #3]
@@ -197,9 +196,14 @@ const Enemy_Manager = (typeof globalThis !== 'undefined' && globalThis.Enemy_Man
         );
     },
 
-    /** [Sequence #8] Xóa khỏi bản đồ */
-    onDeath(enemy) {
+    /** UC10.1 - [Sequence 10.1.26] Enemy_Manager xóa Enemy khỏi danh sách quản lý */
+    removeEnemy(enemy) {
         Game_Manager.enemies = Game_Manager.enemies.filter(e => e !== enemy);
+    },
+
+    /** Giữ lại để tương thích nếu code cũ còn gọi Enemy_Manager.onDeath() */
+    onDeath(enemy) {
+        this.removeEnemy(enemy);
     }
 };
 
@@ -930,11 +934,37 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
             UI_Manager.showVictory();
         }
     },
+    /** UC10.1 - Điều phối xử lý Enemy bị tiêu diệt */
+    handleEnemyKilled(enemy) {
+        if (!enemy || !this.enemies.includes(enemy)) return;
 
+        // [Sequence 10.1.25] Enemy thông báo trạng thái bị tiêu diệt.
+        const deathInfo = enemy.onDeath();
+
+        // [Sequence 10.1.26] Game_Manager yêu cầu Enemy_Manager xóa Enemy khỏi trận đấu.
+        Enemy_Manager.removeEnemy(enemy);
+
+        // [Sequence 10.1.27] Game_Manager cộng vàng thưởng cho người chơi.
+        Player_Stats.addGold((deathInfo && deathInfo.reward) || enemy.reward || 0);
+    },
+
+    /** UC10.1 - Kiểm tra Enemy còn sống hay đã bị tiêu diệt */
     checkEnemyDeath() {
-        // [Sequence #7, #8, #9]
-        const deadEnemies = this.enemies.filter(e => e.hp <= 0);
-        deadEnemies.forEach(e => e.onDeath());
+        // [Sequence 10.1.23] Game_Manager kiểm tra máu của Enemy.
+        const deadEnemies = this.enemies.filter(enemy => enemy.hp <= 0);
+
+        if (deadEnemies.length > 0) {
+            // [Sequence 10.1.24] Có Enemy bị tiêu diệt.
+            deadEnemies.forEach(enemy => {
+                this.handleEnemyKilled(enemy);
+            });
+
+            // [Sequence 10.1.28] Cập nhật giao diện sau khi xóa Enemy và cộng vàng.
+            UI_Manager.updateUI();
+            return;
+        }
+
+        // [Sequence 10.1.29 - 10.1.30] Enemy còn sống, UI vẫn được đồng bộ trạng thái.
         UI_Manager.updateUI();
     },
 
