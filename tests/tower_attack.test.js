@@ -14,6 +14,7 @@
  *   + Projectile không gây sát thương sai khi target đã chết.
  *   + AOE không đánh enemy đã chết.
  *   + Enemy di chuyển và check va chạm base đúng theo pathIndex.
+ *   + Game_Manager điều phối xóa Enemy chết và cộng vàng thưởng.
  *
  * Chạy:
  *   npx jest tests/tower_attack.test.js --verbose
@@ -619,6 +620,107 @@ describe('UC10: Tower Attack — Tháp tấn công kẻ thù', () => {
 
             // Hết duration thì hiệu ứng poison bị xóa khỏi enemy.
             expect(target.effects.length).toBe(0);
+        });
+
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+    // NHÓM 7: Enemy bị tiêu diệt
+    // Kiểm tra sau khi refactor:
+    // - Enemy.onDeath() chỉ trả thông tin reward.
+    // - Enemy_Manager.removeEnemy() chịu trách nhiệm xóa Enemy.
+    // - Game_Manager.checkEnemyDeath() điều phối xóa Enemy và cộng vàng.
+    // ─────────────────────────────────────────────────────────────────────────
+    describe('Nhóm 7 — Enemy bị tiêu diệt', () => {
+
+        test('BR-Tower-18: Enemy.onDeath chỉ trả reward, không tự xóa Enemy và không tự cộng vàng', () => {
+            const enemy = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 0,
+                reward: 30
+            });
+
+            Game_Manager.enemies = [enemy];
+            Player_Stats.money = 50;
+
+            const deathInfo = enemy.onDeath();
+
+            expect(deathInfo).toEqual({ reward: 30 });
+            expect(Game_Manager.enemies).toEqual([enemy]);
+            expect(Player_Stats.money).toBe(50);
+        });
+
+        test('BR-Tower-19: Enemy_Manager.removeEnemy xóa đúng Enemy khỏi danh sách quản lý', () => {
+            const enemyA = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 20,
+                reward: 10
+            });
+
+            const enemyB = makeEnemy({
+                x: 120,
+                y: 100,
+                hp: 20,
+                reward: 15
+            });
+
+            Game_Manager.enemies = [enemyA, enemyB];
+
+            Enemy_Manager.removeEnemy(enemyA);
+
+            expect(Game_Manager.enemies).toEqual([enemyB]);
+        });
+
+        test('BR-Tower-20: Game_Manager.handleEnemyKilled xóa Enemy và cộng vàng thưởng', () => {
+            const deadEnemy = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 0,
+                reward: 25
+            });
+
+            const aliveEnemy = makeEnemy({
+                x: 120,
+                y: 100,
+                hp: 40,
+                reward: 10
+            });
+
+            Game_Manager.enemies = [deadEnemy, aliveEnemy];
+            Player_Stats.money = 100;
+
+            Game_Manager.handleEnemyKilled(deadEnemy);
+
+            expect(Game_Manager.enemies).toEqual([aliveEnemy]);
+            expect(Game_Manager.enemies).not.toContain(deadEnemy);
+            expect(Player_Stats.money).toBe(125);
+        });
+
+        test('BR-Tower-21: checkEnemyDeath chỉ xử lý Enemy hết máu và giữ lại Enemy còn sống', () => {
+            const deadEnemy = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 0,
+                reward: 25
+            });
+
+            const aliveEnemy = makeEnemy({
+                x: 120,
+                y: 100,
+                hp: 40,
+                reward: 10
+            });
+
+            Game_Manager.enemies = [deadEnemy, aliveEnemy];
+            Player_Stats.money = 100;
+
+            Game_Manager.checkEnemyDeath();
+
+            expect(Game_Manager.enemies).toEqual([aliveEnemy]);
+            expect(Game_Manager.enemies).toContain(aliveEnemy);
+            expect(Game_Manager.enemies).not.toContain(deadEnemy);
+            expect(Player_Stats.money).toBe(125);
         });
 
     });
