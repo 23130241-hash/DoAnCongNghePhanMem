@@ -728,4 +728,137 @@ describe('UC10: Tower Attack — Tháp tấn công kẻ thù', () => {
         });
 
     });
+    // ─────────────────────────────────────────────────────────────────────────
+// NHÓM 8: Đồng bộ hiệu ứng Enemy theo sequence UC10
+// ─────────────────────────────────────────────────────────────────────────
+    describe('Nhóm 8 — Enemy nhận hiệu ứng và xử lý snapshot an toàn', () => {
+
+        test('BR-Tower-22: applyEffect cập nhật slow cũ, giữ hiệu ứng làm chậm mạnh hơn', () => {
+            const enemy = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 40,
+                speed: 2
+            });
+
+            enemy.effects.push({
+                type: 'slow',
+                factor: 0.7,
+                duration: 500
+            });
+
+            enemy.applyEffect({
+                type: 'slow',
+                factor: 0.5,
+                duration: 1200
+            });
+
+            expect(enemy.effects.length).toBe(1);
+            expect(enemy.effects[0]).toEqual({
+                type: 'slow',
+                factor: 0.5,
+                duration: 1200
+            });
+        });
+
+        test('BR-Tower-23: applyEffect cập nhật poison cũ, giữ damage mạnh hơn và reset tickTimer', () => {
+            const enemy = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 40,
+                speed: 2
+            });
+
+            enemy.effects.push({
+                type: 'poison',
+                damage: 2,
+                duration: 600,
+                tickInterval: 500,
+                tickTimer: 200
+            });
+
+            enemy.applyEffect({
+                type: 'poison',
+                damage: 5,
+                duration: 1500,
+                tickInterval: 500,
+                tickTimer: 500
+            });
+
+            expect(enemy.effects.length).toBe(1);
+            expect(enemy.effects[0]).toEqual({
+                type: 'poison',
+                damage: 5,
+                duration: 1500,
+                tickInterval: 500,
+                tickTimer: 500
+            });
+        });
+
+        test('BR-Tower-24: Projectile không gắn hiệu ứng nếu Enemy chết sau damage trực tiếp', () => {
+            const target = makeEnemy({
+                x: 100,
+                y: 100,
+                hp: 5,
+                speed: 2
+            });
+
+            Game_Manager.enemies = [target];
+
+            target.applyEffect = jest.fn(target.applyEffect.bind(target));
+
+            const tower = new Tower(90, 100, 'magic');
+            tower.dmg = 10;
+            tower.attackType = 'magic';
+            tower.slowFactor = 0.5;
+            tower.slowDuration = 1000;
+
+            const projectile = new Projectile(tower, target);
+            const stillAlive = projectile.update();
+
+            expect(stillAlive).toBe(false);
+            expect(target.takeDamage).toHaveBeenCalledWith(10);
+            expect(target.hp).toBeLessThanOrEqual(0);
+            expect(target.applyEffect).not.toHaveBeenCalled();
+            expect(target.effects).toEqual([]);
+        });
+
+        test('BR-Tower-25: _tickLogic bỏ qua Enemy đã bị xóa khỏi enemies trong cùng frame', () => {
+            const enemyA = makeEnemy({
+                x: 200,
+                y: 0,
+                node: 3,
+                hp: 20,
+                damage: 0
+            });
+
+            const enemyB = makeEnemy({
+                x: 200,
+                y: 0,
+                node: 3,
+                hp: 20,
+                damage: 5
+            });
+
+            Game_Manager.enemies = [enemyA, enemyB];
+            Player_Stats.hp = 20;
+
+            enemyA.onReachBase = jest.fn(() => {
+                Game_Manager.destroyEnemy(enemyA);
+                Game_Manager.destroyEnemy(enemyB);
+            });
+
+            enemyB.onReachBase = jest.fn(() => {
+                Game_Manager.handleEnemyReachedBase(enemyB);
+            });
+
+            Game_Manager._tickLogic(16.67);
+
+            expect(enemyA.onReachBase).toHaveBeenCalled();
+            expect(enemyB.onReachBase).not.toHaveBeenCalled();
+            expect(Player_Stats.hp).toBe(20);
+            expect(Game_Manager.enemies).toEqual([]);
+        });
+
+    });
 });
