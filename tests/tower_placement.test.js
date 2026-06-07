@@ -57,6 +57,10 @@ describe('UC05 - Tower Placement', () => {
         UI_Manager.clearSelected = jest.fn();
     });
 
+    /**
+     * Kiểm thử luồng chính: Thỏa mãn mọi bước trong Sequence Diagram (Vị trí OK, Tiền OK)
+     * Mong đợi: Khởi tạo tháp (step 10), trừ tiền (step 11), chiếm ô (step 12), báo thành công (step 13).
+     */
     test('Game_Manager.requestBuildTower: Xây tháp thành công khi đủ tiền và đúng vị trí', () => {
         Player_Stats.checkMoney.mockReturnValue(true);
         Map_Grid.checkValidPosition.mockReturnValue({ spot: { x: 100, y: 100 }, valid: true });
@@ -65,10 +69,15 @@ describe('UC05 - Tower Placement', () => {
 
         expect(result).toBe(true);
         expect(Game_Manager.towers.length).toBe(1);
-        expect(Game_Manager.placementEffects.length).toBe(1);
+        expect(Game_Manager.placementEffects.length).toBe(1); // Kiểm tra hiệu ứng (commit fix(ux))
         expect(Map_Grid.markOccupied).toHaveBeenCalledWith(100, 100);
+        expect(UI_Manager.updateUI).toHaveBeenCalled();
     });
 
+    /**
+     * Kiểm thử luồng rẽ nhánh: Không đủ tiền (Sequence Step #9)
+     * Mong đợi: Không xây được tháp, báo lỗi màu vàng.
+     */
     test('Game_Manager.requestBuildTower: Thất bại khi không đủ tiền', () => {
         Player_Stats.checkMoney.mockReturnValue(false);
         Map_Grid.checkValidPosition.mockReturnValue({ spot: { x: 100, y: 100 }, valid: true });
@@ -78,6 +87,6 @@ describe('UC05 - Tower Placement', () => {
         expect(result).toBe(false);
         expect(Game_Manager.towers.length).toBe(0);
         expect(Game_Manager.placementEffects.length).toBe(0);
-        expect(UI_Manager.showError).toHaveBeenCalled();
+        expect(UI_Manager.showError).toHaveBeenCalledWith(expect.any(String), "#f1c40f"); // Màu vàng cam (Yellowish)
     });
 });

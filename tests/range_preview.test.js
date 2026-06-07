@@ -49,6 +49,10 @@ describe('UC03 - Range Preview Logic', () => {
         jest.clearAllMocks();
     });
 
+    /** 
+     * Kiểm tra khả năng bám bắt tọa độ chuột trên canvas game.
+     * Đây là dữ liệu đầu vào cho việc hiển thị range preview.
+     */
     test('UI_Manager cập nhật mouseX/mouseY chính xác', () => {
         const event = { clientX: 500, clientY: 400 };
         const point = UI_Manager.getCanvasPoint(event);
@@ -59,6 +63,10 @@ describe('UC03 - Range Preview Logic', () => {
         expect(UI_Manager.mouseY).toBe(400);
     });
 
+    /** 
+     * Kiểm tra logic "Snap" (hút tháp vào ô xây dựng) và cập nhật hoverBuildSpot.
+     * Ánh xạ với tính năng Ghost Tower trong commit: feat: Triển khai Range Preview, Ghost Tower.
+     */
     test('Logic Snap tháp (hoverBuildSpot) hoạt động khi có selectedTowerSlot', () => {
         // Giả lập trạng thái chọn tháp
         UI_Manager.selectedTowerSlot = { type: 'archer' };

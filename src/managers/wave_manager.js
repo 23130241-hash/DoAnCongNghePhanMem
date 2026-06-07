@@ -140,7 +140,10 @@ const Wave_Manager = {
         if (this.waveTimer > 0) {
             this.waveTimer -= dt;
             if (this.waveTimer <= 0) {
-                // [UC09 - 09.1.0] Kích hoạt countdown trước khi spawn wave mới
+                /**
+                 * [UC09 - Sequence] Kích hoạt đếm ngược trước khi bắt đầu Wave mới.
+                 * Liên quan đến commit: feat: Them co che tang toc va UI mo khoa theo wave.
+                 */
                 this._beginCountdown();
             }
             return;

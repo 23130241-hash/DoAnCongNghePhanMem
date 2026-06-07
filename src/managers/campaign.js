@@ -76,10 +76,10 @@ const Campaign_Manager = {
             UI_Manager.backToMainMenu();         // về campaign (đã patch ở trên)
         };
 
-        // [Patch] UI_Manager.enterGame: apply unlocked slots trước khi vào game
+        // [UC05 - Patch] UI_Manager.enterGame: Tự động kích hoạt các tháp đã mở khóa trước khi vào trận.
         const _origEnter = UI_Manager.enterGame.bind(UI_Manager);
         UI_Manager.enterGame = function (levelId) {
-            Upgrade_System.applyUnlockedSlots(); // đảm bảo tháp mở khóa xuất hiện
+            Upgrade_System.applyUnlockedSlots(); // Đảm bảo người chơi có thể chọn tháp đã mua (Step #1 UC05)
             _origEnter(levelId);
         };
     },

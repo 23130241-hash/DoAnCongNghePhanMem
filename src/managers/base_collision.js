@@ -138,13 +138,8 @@
      * ================================================================ */
 
     /**
-     * [UC11 - Luồng chính đầy đủ] handleEnemyReachedBase(enemy)
-     *
-     * Được gọi bởi enemy.onReachBase() (step 11.1.3).
-     * Thực hiện đúng thứ tự 8 bước trong sequence diagram,
-     * với bước 11.1.4b getDamage() là điểm thay đổi so với v1.
-     *
-     * @param {Enemy} enemy — enemy vừa chạm vào căn cứ
+     * [UC11 — Kẻ thù lọt vào căn cứ] Điều phối xử lý khi enemy lọt căn cứ.
+     * Ánh xạ với các bước 11.1.4 -> 11.1.10 trong logic trừ HP và Game Over.
      */
     Game_Manager.handleEnemyReachedBase = function (enemy) {
         /* ── Step 11.1.4a ── Xóa enemy khỏi danh sách (destroy) */

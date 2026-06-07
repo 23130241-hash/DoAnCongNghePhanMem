@@ -89,6 +89,10 @@ describe('UC03 - Horizontal Menu Logic', () => {
     // ----------------------------------------------------------------
     // TEST 1: hideRadialMenu phải thêm class 'hidden' vào menu
     // ----------------------------------------------------------------
+    /** 
+     * Kiểm tra khả năng ẩn menu khi không sử dụng.
+     * Liên quan đến feature: Radial Menu.
+     */
     test('hideRadialMenu ẩn menu bằng class hidden', () => {
         UI_Manager.hideRadialMenu();
         expect(mockRadialMenu.classList.add).toHaveBeenCalledWith('hidden');
@@ -97,6 +101,7 @@ describe('UC03 - Horizontal Menu Logic', () => {
     // ----------------------------------------------------------------
     // TEST 2: hideRadialMenu xóa activeRadialSpot (reset state)
     // ----------------------------------------------------------------
+    /** Đảm bảo trạng thái (state) được dọn dẹp sạch sẽ sau khi đóng menu. */
     test('hideRadialMenu reset activeRadialSpot về null', () => {
         UI_Manager.activeRadialSpot = { x: 100, y: 200 };
         UI_Manager.hideRadialMenu();
@@ -107,6 +112,10 @@ describe('UC03 - Horizontal Menu Logic', () => {
     // TEST 3: showRadialMenu lưu lại Build Spot vào activeRadialSpot.
     //         Đây là side-effect đảm bảo flow "chọn spot → mở menu" đúng.
     // ----------------------------------------------------------------
+    /** 
+     * Kiểm tra logic mở menu tại một Build Spot cụ thể.
+     * Ánh xạ với bước "chọn vị trí trống" -> "hiển thị menu chọn tháp nhanh".
+     */
     test('showRadialMenu lưu lại activeRadialSpot đúng với spot được truyền', () => {
         const spot = { x: 250, y: 300 };
         UI_Manager.showRadialMenu(spot.x, spot.y, spot);

@@ -357,6 +357,10 @@ const Upgrade_System = {
     /* ----------------------------------------------------------------
      * applyUnlockedSlots — gọi trước enterGame để active các slot đã mở
      * ---------------------------------------------------------------- */
+    /**
+     * [UC05 - Hỗ trợ] Tự động kích hoạt các ô tháp đã được mở khóa từ trước.
+     * Đảm bảo tháp mới (như Tháp Băng, Bắn Tỉa) xuất hiện trong menu chọn tháp (Step #1).
+     */
     applyUnlockedSlots() {
         const unlocked = (GAME_CONFIG.SAVE_DATA.unlockedUpgrades || [])
             .filter(k => !k.startsWith('evolved_') && TOWER_SHOP_CATALOG[k]);

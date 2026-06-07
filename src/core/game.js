@@ -248,9 +248,9 @@ const Map_Grid = (typeof globalThis !== 'undefined' && globalThis.Map_Grid) ? gl
         return this.occupiedSpots.some(item => item.key === spotKey);
     },
     /**
-     * [UC05 - Sequence #5.4.4] checkValidPosition(x,y)
-     * Kiểm tra vị trí đặt tower có hợp lệ hay không
-     * Tìm build spot gần nhất và kiểm tra spot đã bị chiếm chưa
+     * [UC05 - Sequence Step #4] GM nhờ Map Grid kiểm tra vị trí.
+     * [UC05 - Sequence Step #5] Trả về kết quả: Hợp lệ hay không, tọa độ ô chuẩn và lý do.
+     * Kiểm tra vị trí đặt tower có hợp lệ hay không: tìm build spot và kiểm tra đã bị chiếm chưa.
      */
     checkValidPosition(x, y) {
         const spot = this.findNearestBuildSpot(x, y);
@@ -277,6 +277,7 @@ const Map_Grid = (typeof globalThis !== 'undefined' && globalThis.Map_Grid) ? gl
             reason: ""
         };
     },
+    /** [UC05 - Sequence Step #12] Đánh dấu ô đất đã bị chiếm dụng để không bị xây đè. */
     markOccupied(x, y){
         const key = this.getSpotKey(x, y);
 
@@ -566,10 +567,8 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
 
     /* ---------- Tower lifecycle ---------- */
     /**
-     * [UC05 - Sequence #5.4.3] requestBuildTower(x,y,towerType)
-     * Hàm điều phối chính của use case đặt tower
-     * Kiểm tra vị trí hợp lệ, kiểm tra tiền
-     * Sau đó tạo tower mới và cập nhật giao diện
+     * [UC05 - Sequence Step #3] UI gửi thông tin vị trí và loại tháp cần xây tới GM (Game_Manager).
+     * Hàm điều phối chính: kiểm tra vị trí, kiểm tra tài chính, khởi tạo tháp.
      */
     requestBuildTower(x, y, towerType) {
         const towerConfig = GAME_CONFIG.TOWERS[towerType];
@@ -579,51 +578,35 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
             return false;
         }
         const positionCheck = Map_Grid.checkValidPosition(x, y);
-        /**
-         * [UC05 - Alternative Flow A1]
-         * Nếu vị trí không hợp lệ thì hiển thị lỗi
-         */
+        /** [UC05 - Sequence Step #6] Vị trí không hợp lệ: GM yêu cầu UI hiển thị thông báo lỗi vị trí (Màu Đỏ). */
         if (!positionCheck.valid) {
             UI_Manager.showError(positionCheck.reason, "#e74c3c");
             return false;
         }
         const cost = towerConfig.levels[0].cost;
         /**
-         * [UC05 - Sequence #5.4.5] checkMoney(cost)
-         * Kiểm tra người chơi có đủ tiền xây tower hay không
+         * [UC05 - Sequence Step #7] Nếu vị trí trống, GM tiếp tục kiểm tra số dư vàng (Player_Stats).
+         * [UC05 - Sequence Step #8] Trả về kết quả (Có đủ tiền mua hay không).
+         * [UC05 - Sequence Step #9] Không đủ vàng: GM yêu cầu UI cảnh báo thiếu vàng (Màu vàng).
          */
         if (!Player_Stats.checkMoney(cost)) {
-            /**
-             * [UC05 - Alternative Flow A2]
-             * Không đủ tiền để xây tower
-             */
             UI_Manager.showError("Không đủ tiền", "#f1c40f");
             return false;
         }
-        const { x: spotX, y: spotY } = positionCheck.spot;
+        /** [UC05 - Sequence Step #10] Đủ vàng: Điều kiện thỏa mãn, khởi tạo Tháp mới trên bản đồ. */
         const tower = new Tower(spotX, spotY, towerType);
-        /**
-         * [UC05 - Sequence #5.4.6] deductMoney(cost)
-         * Trừ số vàng tương ứng giá xây tower
-         */
+        /** [UC05 - Sequence Step #11] Trừ vàng của người chơi. */
         Player_Stats.deductMoney(cost);
-        /**
-         * [UC05 - Sequence #5.4.7] create Tower
-         * Tạo đối tượng tower mới tại build spot hợp lệ
-         */
         this.towers.push(tower);
         /**
          * [UC05 - Sequence #5.4.8] markOccupied(x,y)
          * Đánh dấu build spot đã được sử dụng
          */
         Map_Grid.markOccupied(spotX, spotY);
-        /**
-         * [UC05 - Sequence #5.4.9] updateUI()
-         * Cập nhật lại giao diện sau khi xây tower
-         */
+        /** [UC05 - Sequence Step #13] Cập nhật lại UI, báo thành công (Màu Xanh) và tắt chế độ xây dựng. */
         UI_Manager.showError(`Đã xây ${towerConfig.name}`, "#2ecc71");
         UI_Manager.updateUI();
-        // Thêm hiệu ứng nhận biết: vòng "sáng lên" và lan tỏa rồi biến mất
+        // Hiệu ứng "flash" khi đặt tháp thành công (fix(ux) commit)
         this.placementEffects.push({ x: spotX, y: spotY, radius: 20, alpha: 1, maxRadius: 70 });
         UI_Manager.clearSelected();
 
@@ -961,10 +944,8 @@ const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) 
         };
     },
     /**
-     * [UC05 - Sequence #5.4.1] Chọn loại tháp
-     * Người chơi click chọn một tower slot trên giao diện UI
-     * UI_Manager lưu tower được chọn vào selectedTowerSlot
-     * Đồng thời cập nhật trạng thái selected cho slot hiện tại
+     * [UC05 - Sequence Step #1] Người chơi click chọn tháp muốn xây trên menu.
+     * Lưu thông tin tháp vào selectedTowerSlot và cập nhật trạng thái UI.
      */
     _bindTowerSlots() {
         document.querySelectorAll('.slot.active').forEach(slot => {
@@ -1009,10 +990,8 @@ const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) 
         });
     },
     /**
-     * [UC05 - Sequence #5.4.2] Click vị trí trên bản đồ
-     * Nhận sự kiện click trên canvas game
-     * Lấy tọa độ clickX, clickY của người chơi
-     * Nếu đã chọn tower thì gửi yêu cầu xây tower
+     * [UC05 - Sequence Step #2] Người chơi click chọn một vị trí trên bản đồ (Canvas).
+     * Điều phối xây tháp hoặc mở Radial Menu nếu chưa chọn tháp.
      */
     _bindCanvasClick() {
         this.canvas.onclick = (e) => {
@@ -1229,6 +1208,10 @@ const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) 
         // Có thể bổ sung click-out để đóng menu nếu cần
     },
 
+    /**
+     * [UC03 — Radial Menu] Hiển thị menu chọn nhanh tháp khi click vào Build Spot.
+     * Liên quan đến commit: feat: Triển khai Radial Menu.
+     */
     showRadialMenu(x, y, spot) {
         this.activeRadialSpot = spot;
         const container = document.getElementById('radial-items-container');
