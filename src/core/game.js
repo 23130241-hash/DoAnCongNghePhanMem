@@ -51,6 +51,7 @@ const Player_Stats = (typeof globalThis !== 'undefined' && globalThis.Player_Sta
     checkMoney(cost) { return this.money >= cost; },
     deductMoney(cost) { this.money -= cost; },
     addMoney(amount) { this.money += amount; },
+    /** UC10.1 - [Sequence 10.1.27] Player_Stats cộng vàng thưởng khi Enemy bị tiêu diệt */
     addGold(amount) { this.money += amount; } // Alias for Sequence Diagram
 };
 
@@ -105,6 +106,37 @@ class Enemy {
         this.hp -= dmg;
         return this.hp;
     }
+    /** UC10.1 - [Sequence 10.1.20] Enemy nhận / cập nhật hiệu ứng đặc biệt từ Projectile */
+    applyEffect(newEffect) {
+        if (!newEffect || !newEffect.type) return;
+
+        const existing = this.effects.find(effect => effect.type === newEffect.type);
+
+        // Nếu Enemy chưa có hiệu ứng này thì thêm mới
+        if (!existing) {
+            this.effects.push({ ...newEffect });
+            return;
+        }
+
+        // Nếu đã có hiệu ứng cùng loại thì refresh thời gian
+        existing.duration = Math.max(existing.duration || 0, newEffect.duration || 0);
+
+        // Slow: giữ hệ số làm chậm mạnh hơn
+        if (newEffect.type === 'slow') {
+            existing.factor = Math.min(existing.factor ?? 1, newEffect.factor ?? 1);
+            return;
+        }
+
+        // Poison: giữ damage độc mạnh hơn và reset thông tin tick
+        if (newEffect.type === 'poison') {
+            existing.damage = Math.max(existing.damage || 0, newEffect.damage || 0);
+            existing.tickInterval = newEffect.tickInterval || existing.tickInterval || 500;
+            existing.tickTimer = newEffect.tickTimer || existing.tickInterval;
+            return;
+        }
+
+        Object.assign(existing, newEffect);
+    }
 
     /** UC10.1 - [Sequence 10.1.25] Enemy thông báo trạng thái bị tiêu diệt */
     onDeath() {
@@ -151,7 +183,7 @@ class Enemy {
  * ------------------------------------------------------------------ */
 const Enemy_Manager = (typeof globalThis !== 'undefined' && globalThis.Enemy_Manager) ? globalThis.Enemy_Manager : {
     get enemies() { return Game_Manager.enemies; },
-
+    /** UC10.1 - [Sequence 10.1.2 / 10.1.9] Kiểm tra Enemy còn sống và còn tồn tại trong trận đấu */
     isTargetable(enemy) {
         return !!enemy
             && enemy.hp > 0
@@ -163,6 +195,7 @@ const Enemy_Manager = (typeof globalThis !== 'undefined' && globalThis.Enemy_Man
         return Map_Grid.getPath(pathIndex);
     },
 
+    /** UC10.1 - [Sequence 10.1.5] Tính khoảng cách còn lại của Enemy tới căn cứ */
     getRemainingPathDistance(enemy) {
         if (!enemy) return Number.POSITIVE_INFINITY;
 
@@ -188,7 +221,7 @@ const Enemy_Manager = (typeof globalThis !== 'undefined' && globalThis.Enemy_Man
         return remaining;
     },
 
-    /** [Sequence #2] Trả về danh sách enemy hợp lệ trong tầm bắn */
+    /** UC10.1 - [Sequence 10.1.2] Trả về danh sách Enemy hợp lệ trong tầm bắn của Tower */
     getEnemiesInRange(x, y, range) {
         return this.enemies.filter(e =>
             this.isTargetable(e) &&
@@ -395,6 +428,7 @@ class Tower {
  *         → chọn Enemy nguy hiểm nhất
  *       → Projectile.create(target)
  * ------------------------------------------------------------------*/
+    /** UC10.1 - [Sequence 10.1.3 - 10.1.6] Tower chọn Enemy nguy hiểm nhất để tấn công */
     selectTarget(enemies) {
         if (!enemies || enemies.length === 0) return null;
 
@@ -416,7 +450,7 @@ class Tower {
         }, null);
     }
 
-    /** UC: Tháp tấn công kẻ thù - Cập nhật logic bắn của Tower */
+    /** UC10.1 - [Sequence 10.1.1 - 10.1.7] Tower giảm cooldown, tìm Enemy trong tầm, chọn mục tiêu và tạo Projectile */
     update(dt) {
         if (this.cooldownTimer > 0) {
             this.cooldownTimer = Math.max(0, this.cooldownTimer - dt);
@@ -447,107 +481,136 @@ class Projectile {
         this.x = tower.x;
         this.y = tower.y;
         this.target = target;
+
         this.dmg = tower.dmg;
         this.color = tower.color;
         this.attackType = tower.attackType;
+
         this.expRad = tower.explosionRadius;
-        // [UC10 - Cải tiến] Projectile lưu thông tin làm chậm từ Tháp Phép Thuật.
-        // Khi attackType = 'magic', các chỉ số này sẽ được gắn vào enemy.
+
+        // Projectile lấy thông tin slow từ tháp phép thuật
         this.slowFactor = tower.slowFactor || 1;
         this.slowDuration = tower.slowDuration || 0;
 
-        // [UC10 - Cải tiến] Projectile lưu chỉ số độc từ Tháp Độc.
-        // Khi attackType = 'poison', các chỉ số này sẽ được gắn vào enemy.
+        // Projectile lấy thông tin poison từ tháp độc
         this.poisonDmg = tower.poisonDmg || 0;
         this.poisonDuration = tower.poisonDuration || 0;
+
         this.speed = GAME_CONFIG.GAMEPLAY.projectileSpeed;
         this.angle = Math.atan2(target.y - this.y, target.x - this.x);
     }
 
+    /** UC10.1 - [Sequence 10.1.7] Tower tạo Projectile */
     static create(tower, target) {
-        const p = new Projectile(tower, target);
-        Game_Manager.projectiles.push(p);
+        const projectile = new Projectile(tower, target);
+        Game_Manager.projectiles.push(projectile);
     }
 
-    /** UC: Tháp tấn công kẻ thù - [Sequence 10.1.5] Cập nhật vị trí và va chạm của viên đạn */
-    update() {
-        // UC10: Kiểm tra mục tiêu trước khi gây sát thương.
-        // Nếu Enemy đã chết hoặc bị xóa khỏi game, Projectile không gây damage sai.
-        const targetGone = !Enemy_Manager.isTargetable(this.target);
+    /** Kiểm tra Projectile đã bay khỏi màn hình chưa */
+    isOutOfCanvas() {
+        return this.x < 0 || this.x > GAME_CONFIG.GAMEPLAY.canvasWidth ||
+            this.y < 0 || this.y > GAME_CONFIG.GAMEPLAY.canvasHeight;
+    }
 
-        if (targetGone) {
-            this.x += Math.cos(this.angle) * (this.speed * 0.85);
-            this.y += Math.sin(this.angle) * (this.speed * 0.85);
+    /** UC10.1 - [Sequence 10.1.11] Target không hợp lệ thì Projectile bay tiếp theo hướng cũ */
+    moveWithoutTarget() {
+        this.x += Math.cos(this.angle) * (this.speed * 0.85);
+        this.y += Math.sin(this.angle) * (this.speed * 0.85);
+    }
 
-            if (this.x < 0 || this.x > GAME_CONFIG.GAMEPLAY.canvasWidth ||
-                this.y < 0 || this.y > GAME_CONFIG.GAMEPLAY.canvasHeight) {
-                return false;
-            }
-
-            return true;
-        }
-
+    /** UC10.1 - [Sequence 10.1.11] Projectile cập nhật hướng bay tới Enemy */
+    moveToTarget() {
         this.angle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
         this.x += Math.cos(this.angle) * this.speed;
         this.y += Math.sin(this.angle) * this.speed;
+    }
 
-        // [Sequence 10.1.6] Projectile gọi takeDamage() lên đối tượng Enemy.
-        if (Math.hypot(this.target.x - this.x, this.target.y - this.y) < 15) {
-            if (this.attackType === 'aoe') {
-                Game_Manager.explosions.push({
-                    x: this.x,
-                    y: this.y,
-                    radius: 0,
-                    maxRadius: this.expRad,
-                    alpha: 1
-                });
+    /** UC10.1 - [Sequence 10.1.11] Projectile kiểm tra va chạm với Enemy */
+    hasHitTarget() {
+        return Math.hypot(this.target.x - this.x, this.target.y - this.y) < 15;
+    }
 
-                Game_Manager.enemies.forEach(e => {
-                    if (Enemy_Manager.isTargetable(e) &&
-                        Math.hypot(e.x - this.x, e.y - this.y) < this.expRad) {
-                        e.takeDamage(this.dmg);
-                    }
-                });
-            } else if (this.attackType === 'magic' && Enemy_Manager.isTargetable(this.target)) {
-                // [UC10 - Cải tiến] Đạn phép thuật:
-                // 1. Gây sát thương trực tiếp lên enemy.
-                // 2. Gắn hiệu ứng slow để làm giảm tốc độ di chuyển của enemy.
-                this.target.takeDamage(this.dmg);
-                this.target.effects.push({
-                    type: 'slow',
-                    factor: this.slowFactor,
-                    duration: this.slowDuration
-                });
+    /** UC10.1 - [Sequence 10.1.12] Đạn AOE gây sát thương vùng nổ */
+    applyAoeDamage() {
+        Game_Manager.explosions.push({
+            x: this.x,
+            y: this.y,
+            radius: 0,
+            maxRadius: this.expRad,
+            alpha: 1
+        });
 
-            } else if (this.attackType === 'poison' && Enemy_Manager.isTargetable(this.target)) {
-                /* ------------------------------------------------------------------
-                 * [CẢI TIẾN — UC10: Tháp Độc tấn công kẻ thù]
-                 * ------------------------------------------------------------------
-                 * Khi Projectile của Tháp Độc chạm enemy:
-                 *   1. Enemy nhận sát thương ban đầu.
-                 *   2. Enemy bị gắn hiệu ứng poison.
-                 *   3. Enemy tiếp tục mất máu sau mỗi tickInterval.
-                 *
-                 * Cơ chế này khác Tháp Phép Thuật:
-                 *   - Magic: làm chậm enemy.
-                 *   - Poison: rút máu enemy theo thời gian.
-                 * ------------------------------------------------------------------ */
-                this.target.takeDamage(this.dmg);
-                this.target.effects.push({
-                    type: 'poison',
-                    damage: this.poisonDmg,
-                    duration: this.poisonDuration,
-                    tickInterval: 500,
-                    tickTimer: 500
-                });
-
-            } else if (Enemy_Manager.isTargetable(this.target)) {
-                this.target.takeDamage(this.dmg);
+        Game_Manager.enemies.forEach(enemy => {
+            if (
+                Enemy_Manager.isTargetable(enemy) &&
+                Math.hypot(enemy.x - this.x, enemy.y - this.y) < this.expRad
+            ) {
+                enemy.takeDamage(this.dmg);
             }
-            return false;
+        });
+    }
+
+    /** UC10.1 - [Sequence 10.1.13] Projectile gửi hiệu ứng đặc biệt cho Enemy */
+    applySpecialEffect(enemy) {
+        if (!enemy || typeof enemy.applyEffect !== 'function') return;
+
+        if (this.attackType === 'magic') {
+            enemy.applyEffect({
+                type: 'slow',
+                factor: this.slowFactor,
+                duration: this.slowDuration
+            });
+            return;
         }
 
-        return true;
+        if (this.attackType === 'poison') {
+            enemy.applyEffect({
+                type: 'poison',
+                damage: this.poisonDmg,
+                duration: this.poisonDuration,
+                tickInterval: 500,
+                tickTimer: 500
+            });
+        }
+    }
+
+    /** UC10.1 - [Sequence 10.1.13 - 10.1.14] Enemy nhận sát thương trực tiếp */
+    applyDirectDamage() {
+        if (!Enemy_Manager.isTargetable(this.target)) return;
+
+        this.target.takeDamage(this.dmg);
+
+        // Nếu Enemy chết sau khi nhận damage thì không cần gắn hiệu ứng nữa
+        if (!Enemy_Manager.isTargetable(this.target)) return;
+
+        if (this.attackType === 'magic' || this.attackType === 'poison') {
+            this.applySpecialEffect(this.target);
+        }
+    }
+
+    /** UC10.1 - [Sequence 10.1.8 - 10.1.17] Projectile cập nhật vị trí, kiểm tra target và xử lý va chạm */
+    update() {
+        // Target đã chết hoặc bị xóa khỏi mảng enemies
+        // Projectile không gây damage sai, chỉ bay tiếp rồi tự xóa khi ra khỏi canvas
+        if (!Enemy_Manager.isTargetable(this.target)) {
+            this.moveWithoutTarget();
+            return !this.isOutOfCanvas();
+        }
+
+        this.moveToTarget();
+
+        if (!this.hasHitTarget()) {
+            return true;
+        }
+
+        if (this.attackType === 'aoe') {
+            this.applyAoeDamage();
+        } else {
+            this.applyDirectDamage();
+        }
+
+        // Projectile đã va chạm nên Game_Manager._tickLogic() sẽ xóa khỏi mảng projectiles
+        return false;
     }
 }
 
@@ -878,12 +941,16 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
             if (pe.alpha <= 0) this.placementEffects.splice(i, 1);
         }
     },
-
+    /** UC10.1 - [Sequence 10.1.1] Game_Manager xử lý một tick logic của trận đấu */
     _tickLogic(dt) {
         // 1. Cập nhật vị trí và va chạm Kẻ thù
         const enemiesSnapshot = this.enemies.slice();
         for (const enemy of enemiesSnapshot) {
-            enemy.updateEffects(dt); 
+            if (!this.enemies.includes(enemy)) continue;
+            enemy.updateEffects(dt);
+
+            // Enemy chết do poison thì không được đi tiếp hoặc chạm căn cứ
+            if (enemy.hp <= 0) continue;
             this.updateEnemyPosition(enemy);
 
             // [CẢI TIẾN  — Nguyễn Lê Tiến Đạt | UC11]
@@ -901,6 +968,7 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
         this.towers.forEach(t => t.update(dt));
 
         // 3. Đạn di chuyển
+        // [Sequence 10.1.8 - 10.1.17] Projectile di chuyển, va chạm, gây damage rồi bị xóa nếu update() trả false
         for (let i = this.projectiles.length - 1; i >= 0; i--) {
             if (!this.projectiles[i].update()) {
                 this.projectiles.splice(i, 1);
@@ -934,7 +1002,7 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
             UI_Manager.showVictory();
         }
     },
-    /** UC10.1 - Điều phối xử lý Enemy bị tiêu diệt */
+    /** UC10.1 - [Sequence 10.1.25 - 10.1.27] Xử lý Enemy chết: lấy reward, xóa Enemy và cộng vàng */
     handleEnemyKilled(enemy) {
         if (!enemy || !this.enemies.includes(enemy)) return;
 
@@ -948,7 +1016,7 @@ const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manag
         Player_Stats.addGold((deathInfo && deathInfo.reward) || enemy.reward || 0);
     },
 
-    /** UC10.1 - Kiểm tra Enemy còn sống hay đã bị tiêu diệt */
+    /** UC10.1 - [Sequence 10.1.23 - 10.1.30] Kiểm tra Enemy chết, cập nhật danh sách và đồng bộ UI */
     checkEnemyDeath() {
         // [Sequence 10.1.23] Game_Manager kiểm tra máu của Enemy.
         const deadEnemies = this.enemies.filter(enemy => enemy.hp <= 0);
