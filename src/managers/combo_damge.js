@@ -395,12 +395,19 @@
             if (ex.alpha <= 0) this.explosions.splice(i, 1);
         }
 
-        /* Victory check */
+        /* Victory check
+         * [FIX Bảo 05/06] Dùng Wave_Manager.getWaveTotalCount để hỗ trợ
+         * cả 3 format: simple (count), groups (sum group.count), parallel
+         * (sum sub.count). Trước đây chỉ dùng (currentWaveData.count || 0)
+         * → wave dạng groups/parallel có count=undefined → 0 >= 0 = true
+         * → victory tức thì khi vừa sang wave cuối của Level 3 / 4.
+         */
         const currentWaveData =
             GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
+        const waveTotalCount = Wave_Manager.getWaveTotalCount(currentWaveData);
         if (Player_Stats.wave === Player_Stats.maxWaves &&
             currentWaveData &&
-            Wave_Manager.enemiesSpawnedThisWave >= (currentWaveData.count || 0) &&
+            Wave_Manager.enemiesSpawnedThisWave >= waveTotalCount &&
             this.enemies.length === 0) {
             this.isVictory = true;
             this.stopGameLoop();

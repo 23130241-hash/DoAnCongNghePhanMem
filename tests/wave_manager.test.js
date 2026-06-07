@@ -126,6 +126,56 @@ describe('Wave_Manager._isBossWave', () => {
         };
         expect(Wave_Manager._isBossWave(wave)).toBe(false);
     });
+
+    // [Commit 18] Parallel format support
+    test('true nếu một entry trong parallel chứa boss1', () => {
+        const wave = {
+            parallel: [
+                { enemyType: 'creep', count: 10, pathIndex: 0 },
+                { enemyType: 'boss1', count: 1, pathIndex: 1 },
+            ]
+        };
+        expect(Wave_Manager._isBossWave(wave)).toBe(true);
+    });
+
+    test('false nếu parallel không có boss nào', () => {
+        const wave = {
+            parallel: [
+                { enemyType: 'creep', count: 15, pathIndex: 0 },
+                { enemyType: 'skeleton', count: 12, pathIndex: 1 },
+            ]
+        };
+        expect(Wave_Manager._isBossWave(wave)).toBe(false);
+    });
+});
+
+// =====================================================================
+describe('Wave_Manager.getWaveTotalCount cho format parallel [Commit 18]', () => {
+
+    test('cộng dồn count của tất cả sub-spawner', () => {
+        const wave = {
+            parallel: [
+                { enemyType: 'creep',    count: 15, pathIndex: 0 },
+                { enemyType: 'skeleton', count: 12, pathIndex: 1 },
+                { enemyType: 'tank',     count: 3,  pathIndex: 0 },
+            ]
+        };
+        expect(Wave_Manager.getWaveTotalCount(wave)).toBe(15 + 12 + 3);
+    });
+
+    test('parallel rỗng → trả về 0', () => {
+        expect(Wave_Manager.getWaveTotalCount({ parallel: [] })).toBe(0);
+    });
+
+    test('parallel với entry thiếu count → coi như 0', () => {
+        const wave = {
+            parallel: [
+                { enemyType: 'creep', count: 10, pathIndex: 0 },
+                { enemyType: 'tank',  pathIndex: 1 },        // thiếu count
+            ]
+        };
+        expect(Wave_Manager.getWaveTotalCount(wave)).toBe(10);
+    });
 });
 
 // =====================================================================
@@ -286,12 +336,13 @@ describe('GAME_CONFIG validation (config.js)', () => {
         }
     });
 
-    test('Mỗi wave có enemyType (cũ) HOẶC groups (mới) — không thiếu cả 2', () => {
+    test('Mỗi wave có enemyType (cũ) / groups / parallel — không thiếu cả 3', () => {
         for (const [lvlId, lvl] of Object.entries(GAME_CONFIG.LEVELS)) {
             lvl.waves.forEach((wave, idx) => {
-                const hasOld = typeof wave.enemyType === 'string';
-                const hasNew = Array.isArray(wave.groups);
-                expect(hasOld || hasNew).toBe(true);
+                const hasOld      = typeof wave.enemyType === 'string';
+                const hasGroups   = Array.isArray(wave.groups);
+                const hasParallel = Array.isArray(wave.parallel);    // [Commit 18]
+                expect(hasOld || hasGroups || hasParallel).toBe(true);
             });
         }
     });
@@ -327,5 +378,46 @@ describe('GAME_CONFIG validation (config.js)', () => {
         // Phải có ít nhất 1 wave dùng groups
         const hasGroups = lvl3.waves.some(w => Array.isArray(w.groups));
         expect(hasGroups).toBe(true);
+    });
+
+    // [Commit 16/19] Map 4 + Level 4 validation
+    test('Map 04 "Ngã ba phòng tuyến" có đúng 2 path hội tụ tại cùng 1 base', () => {
+        const map04 = GAME_CONFIG.MAPS.map04;
+        expect(map04).toBeDefined();
+        expect(map04.paths).toHaveLength(2);
+        // Cả 2 path phải có ≥ 2 waypoint
+        map04.paths.forEach(path => {
+            expect(path.length).toBeGreaterThanOrEqual(2);
+        });
+        // Waypoint cuối của cả 2 path phải khớp với vị trí base (cùng x, y)
+        const baseX = map04.base.x, baseY = map04.base.y;
+        map04.paths.forEach(path => {
+            const last = path[path.length - 1];
+            expect(last.x).toBe(baseX);
+            expect(last.y).toBe(baseY);
+        });
+    });
+
+    test('Level 4 "Vây hãm" sử dụng map04 + có wave format parallel', () => {
+        const lvl4 = GAME_CONFIG.LEVELS[4];
+        expect(lvl4).toBeDefined();
+        expect(lvl4.mapId).toBe('map04');
+        expect(lvl4.waves.length).toBeGreaterThanOrEqual(4);
+
+        // Wave cuối cùng phải dùng format parallel (đợt khó nhất)
+        const lastWave = lvl4.waves[lvl4.waves.length - 1];
+        expect(Array.isArray(lastWave.parallel)).toBe(true);
+        expect(lastWave.parallel.length).toBe(2);
+
+        // Parallel sub-spawners phải spawn trên 2 path khác nhau (0 và 1)
+        const pathIndices = lastWave.parallel.map(s => s.pathIndex);
+        expect(pathIndices).toContain(0);
+        expect(pathIndices).toContain(1);
+    });
+
+    test('Level 4 wave 1 + wave 2 spawn trên 2 path khác nhau', () => {
+        const waves = GAME_CONFIG.LEVELS[4].waves;
+        expect(waves[0].pathIndex).toBe(0);   // Wave 1 → Path A
+        expect(waves[1].pathIndex).toBe(1);   // Wave 2 → Path B
     });
 });
