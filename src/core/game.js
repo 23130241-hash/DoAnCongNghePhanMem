@@ -1420,16 +1420,27 @@ const UI_Manager = {
             ctx.fillRect(0, 0, W, H);
         }
 
-        // Đường đi
-        if (Map_Grid.path.length > 0) {
-            ctx.strokeStyle = map ? map.pathColor : '#e67e22';
-            ctx.lineWidth = 45; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        // [Commit 16] Đường đi — vẽ TẤT CẢ paths để hỗ trợ map multi-path.
+        // (Trước đây chỉ vẽ Map_Grid.path → chỉ render path[0], không hiển thị
+        // các path khác. Fix lại để Map 04 vẽ đủ 2 đường.)
+        const drawPath = (path) => {
+            if (!path || path.length === 0) return;
             ctx.beginPath();
-            Map_Grid.path.forEach((p, i) =>
+            path.forEach((p, i) =>
                 i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
             ctx.stroke();
+        };
+        if (Map_Grid.paths.length > 0) {
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            // Lớp ngoài (outer) — màu chính
+            ctx.strokeStyle = map ? map.pathColor : '#e67e22';
+            ctx.lineWidth = 45;
+            Map_Grid.paths.forEach(drawPath);
+            // Lớp trong (inner) — màu viền
             ctx.strokeStyle = map ? map.pathInnerColor : '#d35400';
-            ctx.lineWidth = 35; ctx.stroke();
+            ctx.lineWidth = 35;
+            Map_Grid.paths.forEach(drawPath);
         }
 
         // Căn cứ

@@ -122,15 +122,18 @@ const GAME_CONFIG = {
                 ]
             ],
             buildSpots: [
-                // Khu vực Path A (phía trên)
-                { x: 820, y: 180 }, { x: 820, y: 320 },
-                { x: 600, y: 180 }, { x: 600, y: 280 },
-                // Khu vực Path B (phía dưới)
-                { x: 420, y: 500 }, { x: 580, y: 500 },
-                { x: 420, y: 250 }, { x: 580, y: 250 },
-                // Khu vực giao cắt (cover cả 2 path)
-                { x: 300, y: 280 }, { x: 300, y: 420 },
-                { x: 180, y: 280 }, { x: 180, y: 420 }
+                // [Commit 16] 8 build spots phân bố cover cả 2 path,
+                // tránh chồng path và không cluster quá dày.
+                // Khu vực Path A (đoạn dọc trên-phải)
+                { x: 820, y: 320 },                          // bên trái spawn
+                { x: 600, y: 280 },                          // sát góc rẽ
+                // Khu vực Path B (đoạn dọc dưới-giữa)
+                { x: 400, y: 500 }, { x: 600, y: 500 },      // 2 bên Path B
+                // Khu vực ngã ba (cover cả 2 path đoạn cuối)
+                { x: 350, y: 430 },                          // dưới đường ngang
+                { x: 350, y: 280 },                          // trên đường ngang
+                // Gần base (đoạn cuối — cản quái cuối cùng)
+                { x: 180, y: 280 }, { x: 180, y: 430 }
             ],
             base: { x: 50, y: 350, radius: 60 }
         }
@@ -290,6 +293,44 @@ const GAME_CONFIG = {
 
                 // Wave 3 — Boss wave (isBoss=true sẽ trigger cảnh báo đỏ)
                 { enemyType: 'boss1', count: 1, interval: 5000 }
+            ]
+        },
+
+        /* [Commit 19] Level 4 — Vây hãm
+         * Sử dụng map04 "Ngã ba phòng tuyến" với 2 path.
+         * 4 wave thể hiện đầy đủ các format mở rộng UC09:
+         *   Wave 1 — format cũ trên Path A (pathIndex 0)
+         *   Wave 2 — format cũ trên Path B (pathIndex 1)
+         *   Wave 3 — format groups trên Path A
+         *   Wave 4 — format parallel: cả 2 path spawn ĐỒNG THỜI            */
+        4: {
+            name: "Vây hãm",
+            mapId: "map04",
+            startMoney: 450,
+            startHP: 25,
+            waveDelay: 9000,
+            waves: [
+                // Wave 1 — Path A only (phải → trái)
+                { enemyType: 'creep', count: 12, interval: 900, pathIndex: 0 },
+
+                // Wave 2 — Path B only (dưới → giữa → trái)
+                { enemyType: 'skeleton', count: 10, interval: 800, pathIndex: 1 },
+
+                // Wave 3 — Mixed groups trên Path A
+                {
+                    groups: [
+                        { enemyType: 'fast_creep', count: 12, interval: 500, pathIndex: 0 },
+                        { enemyType: 'tank',       count: 4,  interval: 1600, pathIndex: 0 }
+                    ]
+                },
+
+                // Wave 4 — Parallel: cả 2 path spawn cùng lúc (final đợt khó nhất)
+                {
+                    parallel: [
+                        { enemyType: 'creep',    count: 15, interval: 1000, pathIndex: 0 },
+                        { enemyType: 'skeleton', count: 12, interval: 900,  pathIndex: 1 }
+                    ]
+                }
             ]
         }
     },

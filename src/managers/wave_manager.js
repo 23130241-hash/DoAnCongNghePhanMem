@@ -60,6 +60,12 @@ const Wave_Manager = {
     groupSpawnedCount: 0,          // [Commit 10] Số quái spawned của group hiện tại
     currentBoss: null,             // [Commit 11] Reference đến boss enemy đang sống
 
+    /* [Commit 18] State cho wave format `parallel` — nhiều sub-spawner độc lập
+     * chạy song song trên các path khác nhau cùng một wave. Mỗi index trong
+     * mảng tương ứng với một entry trong waveData.parallel[]. */
+    parallelTimers: [],            // ms tới spawn tiếp theo của từng sub-spawner
+    parallelCounts: [],            // số quái đã spawn cho từng sub-spawner
+
     /* ==================================================================
      * LIFECYCLE
      * ================================================================ */
@@ -87,6 +93,8 @@ const Wave_Manager = {
         this.bossWarningTimer = 0;
         this.groupIndex = 0;
         this.groupSpawnedCount = 0;
+        this.parallelTimers = [];                          // [Commit 18]
+        this.parallelCounts = [];                          // [Commit 18]
         this.currentBoss = null;
 
         // [UC09 - 09.2.2] Ẩn UI countdown + banner + boss bar khi reset
@@ -149,8 +157,10 @@ const Wave_Manager = {
         const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
         if (!waveData) return;
 
-        // [UC09 - 09.1.3] Route theo format wave
-        if (Array.isArray(waveData.groups)) {
+        // [UC09 - 09.1.3 / Commit 18] Route theo format wave
+        if (Array.isArray(waveData.parallel)) {
+            this._updateParallelSpawn(dt, waveData);
+        } else if (Array.isArray(waveData.groups)) {
             this._updateGroupSpawn(dt, waveData);
         } else {
             this._updateSimpleSpawn(dt, waveData);
@@ -211,6 +221,51 @@ const Wave_Manager = {
         }
     },
 
+    /**
+     * [Commit 18] Spawn cho format `parallel` — nhiều sub-spawner chạy SONG SONG.
+     * waveData.parallel = [
+     *   { enemyType, count, interval, pathIndex },     ← sub-spawner 0
+     *   { enemyType, count, interval, pathIndex },     ← sub-spawner 1
+     *   ...
+     * ]
+     *
+     * Mỗi sub-spawner có timer riêng (parallelTimers[i]) và đếm spawned riêng
+     * (parallelCounts[i]). Tất cả tick độc lập trong cùng 1 frame — không tuần
+     * tự như format `groups`. Hữu ích cho Level 4 wave 4: spawn cả 2 path cùng lúc.
+     */
+    _updateParallelSpawn(dt, waveData) {
+        const subs = waveData.parallel;
+
+        // Lần đầu vào wave này → khởi tạo timers/counts với độ dài = số sub-spawner
+        if (this.parallelTimers.length !== subs.length) {
+            this.parallelTimers = subs.map(() => 0);
+            this.parallelCounts = subs.map(() => 0);
+        }
+
+        // Tick từng sub-spawner độc lập
+        let allDone = true;
+        for (let i = 0; i < subs.length; i++) {
+            const sub = subs[i];
+            const targetCount = sub.count || 0;
+
+            if (this.parallelCounts[i] < targetCount) {
+                allDone = false;
+                this.parallelTimers[i] -= dt;
+                if (this.parallelTimers[i] <= 0) {
+                    this._spawnEnemy(sub.enemyType, sub.pathIndex || 0);
+                    this.parallelCounts[i]++;
+                    this.parallelTimers[i] = sub.interval;
+                }
+            }
+        }
+
+        // Tất cả sub đã spawn xong + sạch quái → chờ wave sau
+        if (allDone && Game_Manager.enemies.length === 0 &&
+            Player_Stats.wave < Player_Stats.maxWaves) {
+            this.waveTimer = GAME_CONFIG.LEVELS[currentLevel].waveDelay || 3000;
+        }
+    },
+
     _startNextWave() {
         if (Player_Stats.wave >= Player_Stats.maxWaves) return;
         Player_Stats.wave++;
@@ -220,6 +275,9 @@ const Wave_Manager = {
         // [UC09 - 09.1.3] Reset con trỏ group cho wave mới
         this.groupIndex = 0;
         this.groupSpawnedCount = 0;
+        // [Commit 18] Reset parallel state — khởi tạo theo waveData ở vòng update đầu
+        this.parallelTimers = [];
+        this.parallelCounts = [];
 
         // [UC09 - 09.1.1 / 09.1.7] Trigger banner cho wave mới (boss → đỏ)
         const waveData = GAME_CONFIG.LEVELS[currentLevel].waves[Player_Stats.wave - 1];
@@ -449,12 +507,16 @@ const Wave_Manager = {
      * ================================================================ */
 
     /**
-     * [UC09 - 09.1.3] Tổng số quái phải spawn cho 1 wave — bất kể format.
+     * [UC09 - 09.1.3 / Commit 18] Tổng số quái phải spawn cho 1 wave — bất kể format.
      * Format cũ: trả về waveData.count.
      * Format groups: cộng dồn count của từng group.
+     * Format parallel: cộng dồn count của từng sub-spawner.
      */
     getWaveTotalCount(waveData) {
         if (!waveData) return 0;
+        if (Array.isArray(waveData.parallel)) {
+            return waveData.parallel.reduce((s, sub) => s + (sub.count || 0), 0);
+        }
         if (Array.isArray(waveData.groups)) {
             return waveData.groups.reduce((s, g) => s + (g.count || 0), 0);
         }
@@ -462,8 +524,8 @@ const Wave_Manager = {
     },
 
     /**
-     * [Commit 09] Kiểm tra wave hiện tại có boss để hiện cảnh báo đỏ.
-     * Hỗ trợ cả format cũ (enemyType) lẫn format mới (groups).
+     * [Commit 09 / 18] Kiểm tra wave hiện tại có boss để hiện cảnh báo đỏ.
+     * Hỗ trợ 3 format: enemyType (cũ), groups, parallel.
      */
     _isBossWave(waveData) {
         if (!waveData) return false;
@@ -471,12 +533,13 @@ const Wave_Manager = {
             const stats = GAME_CONFIG.ENEMIES[waveData.enemyType];
             return !!(stats && stats.isBoss);
         }
-        if (Array.isArray(waveData.groups)) {
-            return waveData.groups.some(g => {
-                const stats = GAME_CONFIG.ENEMIES[g.enemyType];
+        const checkBossInEntries = (entries) =>
+            entries.some(e => {
+                const stats = GAME_CONFIG.ENEMIES[e.enemyType];
                 return stats && stats.isBoss;
             });
-        }
+        if (Array.isArray(waveData.parallel)) return checkBossInEntries(waveData.parallel);
+        if (Array.isArray(waveData.groups))   return checkBossInEntries(waveData.groups);
         return false;
     }
 };
