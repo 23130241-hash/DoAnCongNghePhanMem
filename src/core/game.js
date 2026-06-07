@@ -10,7 +10,7 @@ let currentLevel = 1;
  * Save_Manager — Lưu/đọc localStorage (đáp ứng [BO-03] OFFLINE PLAY +
  * "Tiến trình lưu cục bộ" trong Non-Functional Requirements).
  * ------------------------------------------------------------------- */
-const Save_Manager = {
+const Save_Manager = (typeof globalThis !== 'undefined' && globalThis.Save_Manager) ? globalThis.Save_Manager : {
     key: "KINGDOM_DEFENSE_DATA",
     save() {
         try { localStorage.setItem(this.key, JSON.stringify(GAME_CONFIG.SAVE_DATA)); }
@@ -36,7 +36,7 @@ const Save_Manager = {
 // 1. MODEL — QUẢN LÝ DỮ LIỆU
 // =====================================================================
 
-const Player_Stats = {
+const Player_Stats = (typeof globalThis !== 'undefined' && globalThis.Player_Stats) ? globalThis.Player_Stats : {
     hp: 0, maxHp: 0, money: 0, wave: 0, maxWaves: 0,
 
     /** Khởi tạo lại theo level (gọi mỗi khi vào màn / chơi lại). */
@@ -150,7 +150,7 @@ class Enemy {
 /** --------------------------------------------------------------------
  * Enemy_Manager — Quản lý danh sách kẻ thù ([Sequence] Enemy_Manager)
  * ------------------------------------------------------------------ */
-const Enemy_Manager = {
+const Enemy_Manager = (typeof globalThis !== 'undefined' && globalThis.Enemy_Manager) ? globalThis.Enemy_Manager : {
     get enemies() { return Game_Manager.enemies; },
 
     isTargetable(enemy) {
@@ -203,7 +203,7 @@ const Enemy_Manager = {
     }
 };
 
-const Map_Grid = {
+const Map_Grid = (typeof globalThis !== 'undefined' && globalThis.Map_Grid) ? globalThis.Map_Grid : {
     mapId: null,
     buildSpots: [],
     occupiedSpots: [],
@@ -551,11 +551,13 @@ class Projectile {
 // 2. CONTROLLER — XỬ LÝ LOGIC TRUNG TÂM
 // =====================================================================
 
-const Game_Manager = {
+const Game_Manager = (typeof globalThis !== 'undefined' && globalThis.Game_Manager) ? globalThis.Game_Manager : {
     towers: [],
     enemies: [],
     projectiles: [],
     explosions: [],
+    // Hiệu ứng trực quan khi tháp được đặt thành công. Mỗi phần tử: {x,y,radius,maxRadius,alpha}
+    placementEffects: [],
 
     isPlaying: false,
     isGameOver: false,
@@ -592,6 +594,7 @@ const Game_Manager = {
         this.enemies = [];
         this.projectiles = [];
         this.explosions = [];
+        this.placementEffects = [];
 
         this.isPlaying = true;
         this.isGameOver = false;
@@ -673,6 +676,8 @@ const Game_Manager = {
          */
         UI_Manager.showError(`Đã xây ${towerConfig.name}`, "#2ecc71");
         UI_Manager.updateUI();
+        // Thêm hiệu ứng nhận biết: vòng "sáng lên" và lan tỏa rồi biến mất
+        this.placementEffects.push({ x: spotX, y: spotY, radius: 20, alpha: 1, maxRadius: 70 });
         UI_Manager.clearSelected();
 
         return true;
@@ -811,6 +816,7 @@ const Game_Manager = {
             cancelAnimationFrame(this._rafId);
             this._rafId = null;
         }
+        this.placementEffects = [];
     },
 
     /* ------------------------------------------------------------------
@@ -852,10 +858,20 @@ const Game_Manager = {
         if (!this.isPlaying || this.isPaused || this.isGameOver) return;
 
         // Chạy logic N lần dựa trên tốc độ game (Sub-stepping)
-        // Điều này đảm bảo mọi thứ nhanh hơn nhưng vẫn giữ nguyên độ chính xác vật lý
         for (let i = 0; i < this.gameSpeed; i++) {
             this._tickLogic(16.67);
             if (this.isGameOver || this.isVictory) break;
+        }
+    },
+
+    /** Cập nhật các hiệu ứng chỉ mang tính chất hiển thị (luôn chạy kể cả khi pause) */
+    _updateVisualOnly(dt) {
+        // Hiệu ứng đặt tháp (vòng nhòe phồng lên)
+        for (let i = this.placementEffects.length - 1; i >= 0; i--) {
+            const pe = this.placementEffects[i];
+            pe.radius += 6;   // Phình ra nhanh
+            pe.alpha -= 0.055; // Mờ dần vừa đủ nhìn thấy (~18 frame, ~0.3s)
+            if (pe.alpha <= 0) this.placementEffects.splice(i, 1);
         }
     },
 
@@ -893,7 +909,7 @@ const Game_Manager = {
         // 5. Kiểm tra quái chết
         this.checkEnemyDeath();
 
-        // 6. Hiệu ứng nổ (visual nhẹ)
+        // 6. Hiệu ứng nổ (hiệu ứng nhẹ)
         for (let i = this.explosions.length - 1; i >= 0; i--) {
             const ex = this.explosions[i];
             ex.radius += GAME_CONFIG.GAMEPLAY.explosionGrowthRate; 
@@ -933,7 +949,7 @@ const Game_Manager = {
 // 3. VIEW — QUẢN LÝ GIAO DIỆN VÀ TƯƠNG TÁC NGƯỜI DÙNG
 // =====================================================================
 
-const UI_Manager = {
+const UI_Manager = (typeof globalThis !== 'undefined' && globalThis.UI_Manager) ? globalThis.UI_Manager : {
     canvas: null, ctx: null,
     selectedTowerSlot: null,
     interactTower: null,
@@ -1410,6 +1426,9 @@ const UI_Manager = {
 
     renderLoop() {
         Game_Manager.updateGameLoop();
+        // Luôn cập nhật hiệu ứng hình ảnh ở đây để đảm bảo chúng biến mất kể cả khi logic bị đứng hoặc bị patch
+        Game_Manager._updateVisualOnly(16.67); 
+        
         const ctx = this.ctx;
         const map = GAME_CONFIG.MAPS[Map_Grid.mapId];
         const W = this.canvas.width, H = this.canvas.height;
@@ -1535,6 +1554,30 @@ const UI_Manager = {
             ctx.font = 'bold 12px Arial';
             ctx.fillText(tower.level, tower.x + 18, tower.y - 18);
 
+            ctx.restore();
+        });
+
+        // Hiệu ứng đặt tháp (vòng tròn hào quang bùng nổ rồi tan biến ngay)
+        Game_Manager.placementEffects.forEach(pe => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(pe.x, pe.y, pe.radius, 0, Math.PI * 2);
+            
+            // Hiệu ứng sáng trắng rực rỡ (Flash Bloom) để cực kỳ nổi bật
+            ctx.globalAlpha = Math.max(0, pe.alpha);
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#ffffff';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 8;
+            ctx.stroke();
+
+            // Vòng tròn phụ mờ để tạo độ sâu cho cú flash
+            ctx.beginPath();
+            ctx.arc(pe.x, pe.y, pe.radius * 0.5, 0, Math.PI * 2);
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = Math.max(0, pe.alpha * 0.5);
+            ctx.stroke();
+            
             ctx.restore();
         });
 
