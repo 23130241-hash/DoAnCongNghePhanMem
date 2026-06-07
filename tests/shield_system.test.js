@@ -505,33 +505,33 @@ describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => 
     });
 
     // ─────────────────────────────────────────────────────────────────────────
-    // NHÓM 7: EDGE CASES (TÍCH LŨY KHI GIÁ MỚI LÀ 200G)
+    // NHÓM 7: EDGE CASES (TÍCH LŨY KHI GIÁ MỚI LÀ 500g)
     // ─────────────────────────────────────────────────────────────────────────
     describe('Nhóm 7 — Edge Cases & Boundary', () => {
 
         test('BR-Shield-29: Mua nhiều lần khiên đúng tích lũy (mua 3 lần)', () => {
-            // SỬA TẠI ĐÂY: Nâng tiền gốc lên 700g để đủ thực hiện 3 lượt mua (3 * 200g = 600g)
-            Player_Stats.money  = 700;
+            // SỬA TẠI ĐÂY: Nâng tiền gốc lên 700g để đủ thực hiện 3 lượt mua (3 * 500g = 600g)
+            Player_Stats.money  = 1600;
             Player_Stats.shield = 0;
 
-            global.Shield.testBuyShield(); // +10 shield, -200g → shield=10, money=500
-            global.Shield.testBuyShield(); // +10 shield, -200g → shield=20, money=300
-            global.Shield.testBuyShield(); // +10 shield, -200g → shield=30, money=100
+            global.Shield.testBuyShield(); // +10 shield, -500g → shield=10, money=1100
+            global.Shield.testBuyShield(); // +10 shield, -500g → shield=20, money=600
+            global.Shield.testBuyShield(); // +10 shield, -500g → shield=30, money=100
 
             expect(Player_Stats.shield).toBe(30);
             expect(Player_Stats.money).toBe(100);
         });
 
         test('BR-Shield-30: Hồi máu + mua khiên trong cùng một frame không xung đột state', () => {
-            // SỬA TẠI ĐÂY: Cấp vốn ban đầu 500g để mua cả hai vật phẩm (200g + 200g = 400g)
-            Player_Stats.money  = 800;
+            // SỬA TẠI ĐÂY: Cấp vốn ban đầu 1100g để mua cả hai vật phẩm (500g + 500g = 400g)
+            Player_Stats.money  = 1100;
             Player_Stats.hp     = 10;
             Player_Stats.shield = 0;
 
-            global.Shield.testHeal();       // -200g, +15 HP (đạt max 20)
-            global.Shield.testBuyShield();  // -200g, +10 shield
+            global.Shield.testHeal();       // -500g, +15 HP (đạt max 20)
+            global.Shield.testBuyShield();  // -500g, +10 shield
 
-            // SỬA GIÁ MỚI: Tiền còn lại là 100g (500g - 200g - 200g = 100g)
+            // SỬA GIÁ MỚI: Tiền còn lại là 100g (1100g - 500g - 500g = 100g)
             expect(Player_Stats.money).toBe(100);
             expect(Player_Stats.hp).toBe(20);
             expect(Player_Stats.shield).toBe(10);
