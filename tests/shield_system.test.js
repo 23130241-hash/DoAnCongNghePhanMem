@@ -131,10 +131,10 @@ beforeEach(() => {
 });
 
 // =============================================================================
-// UC12 — SHIELD SYSTEM TEST SUITE
+// UC11 — SHIELD SYSTEM TEST SUITE
 // =============================================================================
 
-describe('UC12: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => {
+describe('UC11: Shield System — Cơ chế Khiên bảo vệ Căn cứ', () => {
 
     // ─────────────────────────────────────────────────────────────────────────
     // NHÓM 1: MUA KHIÊN (_onBuyShield) - GIÁ MỚI 200G
