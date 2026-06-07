@@ -84,7 +84,8 @@ loadSource('src/core/game.js', [
     'Map_Grid',
     'Tower',
     'Projectile',
-    'Game_Manager'
+    'Game_Manager',
+    'UI_Manager'
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,6 +156,8 @@ beforeEach(() => {
     Player_Stats.money = 0;
     Player_Stats.hp = 20;
     Player_Stats.maxHp = 20;
+
+    UI_Manager.updateUI = jest.fn();
 });
 
 // =============================================================================
@@ -721,6 +724,7 @@ describe('UC10: Tower Attack — Tháp tấn công kẻ thù', () => {
             expect(Game_Manager.enemies).toContain(aliveEnemy);
             expect(Game_Manager.enemies).not.toContain(deadEnemy);
             expect(Player_Stats.money).toBe(125);
+            expect(UI_Manager.updateUI).toHaveBeenCalled();
         });
 
     });
