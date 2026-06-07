@@ -106,39 +106,13 @@ class Enemy {
         return this.hp;
     }
 
-    /** UC10.1 - [Sequence 10.1.21] Enemy nhận hiệu ứng đặc biệt từ Projectile */
-    applyEffect(newEffect) {
-        if (!newEffect || !newEffect.type) return;
-
-        const existing = this.effects.find(effect => effect.type === newEffect.type);
-
-        if (!existing) {
-            this.effects.push(newEffect);
-            return;
-        }
-
-        existing.duration = Math.max(existing.duration || 0, newEffect.duration || 0);
-
-        if (newEffect.type === 'slow') {
-            existing.factor = Math.min(existing.factor || 1, newEffect.factor || 1);
-        }
-
-        if (newEffect.type === 'poison') {
-            existing.damage = Math.max(existing.damage || 0, newEffect.damage || 0);
-            existing.tickInterval = newEffect.tickInterval || existing.tickInterval || 500;
-            existing.tickTimer = Math.min(
-                existing.tickTimer || newEffect.tickTimer || 500,
-                newEffect.tickTimer || 500
-            );
-        }
-    }
-
     /** UC10.1 - [Sequence 10.1.25] Enemy thông báo trạng thái bị tiêu diệt */
     onDeath() {
         return {
             reward: this.reward
         };
     }
+
 
     /* ------------------------------------------------------------------
      * [CẢI TIẾN — Nguyễn Lê Tiến Đạt | UC11 — step #3]
